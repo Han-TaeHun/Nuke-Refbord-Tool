@@ -37,25 +37,15 @@ def _reload_plugin_modules():
 
 
 def open_refboard_panel():
-    """Reload the plugin code and open the dockable panel."""
+    """Reload the plugin code and open the floating panel."""
 
     _reload_plugin_modules()
-    from main import register_panel, show_panel
+    from main import show_panel
 
-    register_panel()
     return show_panel()
 
 
-def register_refboard_panel():
-    """Register the panel without opening it during Nuke startup."""
-
-    _ensure_plugin_path()
-    from main import register_panel
-
-    return register_panel()
-
-
-register_refboard_panel()
+_ensure_plugin_path()
 
 try:
     import nuke

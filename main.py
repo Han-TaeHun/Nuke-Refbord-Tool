@@ -7,6 +7,9 @@ import sys
 from refboard_core.constants import PANEL_ID, PLUGIN_NAME
 
 
+_floating_panel = None
+
+
 def _ensure_plugin_path():
     plugin_dir = os.path.dirname(os.path.abspath(__file__))
     if plugin_dir not in sys.path:
@@ -34,23 +37,25 @@ def show_panel():
 
     _ensure_plugin_path()
     try:
-        import nuke
-        import nukescripts
-    except ImportError:
-        from ui.panel import RefBoardPanel
+        from PySide2 import QtCore
+    except ImportError:  # pragma: no cover - for newer host apps
+        from PySide6 import QtCore
 
-        panel = RefBoardPanel()
-        panel.show()
-        return panel
+    from ui.panel import RefBoardPanel
 
-    pane = nuke.getPaneFor("Properties.1")
-    restored_panel = nukescripts.panels.restorePanel(PANEL_ID)
-    if restored_panel is not None:
-        return restored_panel
+    global _floating_panel
+    try:
+        if _floating_panel is not None and _floating_panel.isVisible():
+            _floating_panel.raise_()
+            _floating_panel.activateWindow()
+            return _floating_panel
+    except RuntimeError:
+        _floating_panel = None
 
-    registered_panel = register_panel()
-    if registered_panel is None:
-        return None
-    if pane is not None:
-        return registered_panel.addToPane(pane)
-    return registered_panel
+    _floating_panel = RefBoardPanel()
+    _floating_panel.setWindowFlags(_floating_panel.windowFlags() | QtCore.Qt.Window)
+    _floating_panel.resize(520, 360)
+    _floating_panel.show()
+    _floating_panel.raise_()
+    _floating_panel.activateWindow()
+    return _floating_panel
