@@ -14,6 +14,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
         super(RefImageItem, self).__init__(pixmap, parent)
         self.source_path = source_path
         self.image_id = image_id
+        self.setTransformOriginPoint(self.boundingRect().center())
         self.setTransformationMode(QtCore.Qt.SmoothTransformation)
         self.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
         self.setFlags(
@@ -25,7 +26,8 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
 
     def wheelEvent(self, event):
         if self.isSelected():
-            factor = 1.1 if event.delta() > 0 else 1.0 / 1.1
+            delta = event.delta() if hasattr(event, "delta") else event.angleDelta().y()
+            factor = 1.1 if delta > 0 else 1.0 / 1.1
             self.setScale(max(0.05, min(20.0, self.scale() * factor)))
             event.accept()
             return
