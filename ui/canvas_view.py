@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - for newer host apps
 from refboard_core.file_manager import FileManager
 from refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
 from ui.image_item import RefImageItem
+from ui.note_item import RefNoteItem
 
 
 class RefCanvasView(QtWidgets.QGraphicsView):
@@ -61,6 +62,22 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def image_items(self):
         return [item for item in self.scene().items() if isinstance(item, RefImageItem)]
 
+    def note_items(self):
+        return [item for item in self.scene().items() if isinstance(item, RefNoteItem)]
+
+    def add_note(self, scene_pos=None, text="Text"):
+        if scene_pos is None:
+            scene_pos = self.mapToScene(self.viewport().rect().center())
+        item = RefNoteItem(text)
+        item.setPos(scene_pos)
+        item.setZValue(self._next_z_value())
+        self.scene().addItem(item)
+        self.scene().clearSelection()
+        item.setSelected(True)
+        item.begin_edit()
+        self.boardChanged.emit()
+        return item
+
     def dragEnterEvent(self, event):
         if self._event_has_images(event):
             event.acceptProposedAction()
@@ -94,6 +111,9 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         super(RefCanvasView, self).wheelEvent(event)
 
     def keyPressEvent(self, event):
+        if self._text_item_is_editing():
+            super(RefCanvasView, self).keyPressEvent(event)
+            return
         if event.matches(QtGui.QKeySequence.Paste):
             if self.paste_images_from_clipboard():
                 event.accept()
@@ -102,7 +122,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             if self.frame_selected_or_all_images():
                 event.accept()
                 return
-        if event.key() in (QtCore.Qt.Key_Delete, QtCore.Qt.Key_Backspace):
+        if event.key() == QtCore.Qt.Key_Delete:
             if self.delete_selected_items():
                 event.accept()
                 return
@@ -153,12 +173,16 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
+        new_text_action = menu.addAction("New Text")
+        menu.addSeparator()
         placeholder = menu.addAction("RefBoard menu placeholder")
         placeholder.setEnabled(False)
-        menu.exec_(event.globalPos())
+        action = menu.exec_(event.globalPos())
+        if action == new_text_action:
+            self.add_note(self.mapToScene(event.pos()))
 
     def _next_z_value(self):
-        values = [item.zValue() for item in self.image_items()]
+        values = [item.zValue() for item in self.image_items() + self.note_items()]
         return (max(values) + 1) if values else 1
 
     def _event_has_images(self, event):
@@ -248,12 +272,23 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def _selected_image_items(self):
         return [item for item in self.scene().selectedItems() if isinstance(item, RefImageItem)]
 
+    def _selected_board_items(self):
+        return [
+            item
+            for item in self.scene().selectedItems()
+            if isinstance(item, (RefImageItem, RefNoteItem))
+        ]
+
+    def _text_item_is_editing(self):
+        focus_item = self.scene().focusItem()
+        return isinstance(focus_item, RefNoteItem) and focus_item.is_editing()
+
     def frame_selected_or_all_images(self):
-        selected_items = self._selected_image_items()
-        return self._frame_items(selected_items or self.image_items())
+        selected_items = self._selected_board_items()
+        return self._frame_items(selected_items or (self.image_items() + self.note_items()))
 
     def frame_all_images(self):
-        return self._frame_items(self.image_items())
+        return self._frame_items(self.image_items() + self.note_items())
 
     def _frame_items(self, items):
         if not items:
@@ -264,7 +299,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
         rect = QtCore.QRectF()
         for item in items:
-            item_rect = item.mapToScene(item.image_bounding_rect()).boundingRect()
+            if isinstance(item, RefImageItem):
+                item_rect = item.mapToScene(item.image_bounding_rect()).boundingRect()
+            else:
+                item_rect = item.mapToScene(item.boundingRect()).boundingRect()
             rect = item_rect if rect.isNull() else rect.united(item_rect)
         if rect.isNull() or rect.width() <= 0 or rect.height() <= 0:
             return False
@@ -347,7 +385,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         return True
 
     def delete_selected_items(self):
-        items = self._selected_image_items()
+        items = self._selected_board_items()
         if not items:
             return False
         for item in items:
