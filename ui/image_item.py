@@ -28,6 +28,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
         self.setTransformOriginPoint(self.boundingRect().center())
         self.setTransformationMode(QtCore.Qt.SmoothTransformation)
         self.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
+        self.setCacheMode(QtWidgets.QGraphicsItem.NoCache)
         self.setFlags(
             QtWidgets.QGraphicsItem.ItemIsMovable
             | QtWidgets.QGraphicsItem.ItemIsSelectable

@@ -12,6 +12,8 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
 
     MIN_WIDTH = 180.0
     MIN_HEIGHT = 42.0
+    FRAME_PADDING_X = 6.0
+    FRAME_PADDING_Y = 4.0
 
     def __init__(self, text="Text", note_id=None, parent=None):
         super(RefNoteItem, self).__init__(text, parent)
@@ -33,10 +35,17 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         font.setPointSize(18)
         self.setFont(font)
         self.setTextWidth(240)
+        self.setCacheMode(QtWidgets.QGraphicsItem.NoCache)
 
     def boundingRect(self):
         rect = super(RefNoteItem, self).boundingRect()
-        return rect.united(QtCore.QRectF(0.0, 0.0, self.MIN_WIDTH, self.MIN_HEIGHT))
+        rect = rect.united(QtCore.QRectF(0.0, 0.0, self.MIN_WIDTH, self.MIN_HEIGHT))
+        return rect.adjusted(
+            -self.FRAME_PADDING_X,
+            -self.FRAME_PADDING_Y,
+            self.FRAME_PADDING_X,
+            self.FRAME_PADDING_Y,
+        )
 
     def shape(self):
         path = QtGui.QPainterPath()
@@ -84,7 +93,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
     def paint(self, painter, option, widget=None):
         if self.isSelected() or self.is_editing() or not self.toPlainText():
             painter.save()
-            rect = self.boundingRect().adjusted(-6, -4, 6, 4)
+            rect = self.boundingRect()
             pen_color = QtGui.QColor("#4c9aff") if self.isSelected() or self.is_editing() else QtGui.QColor("#5a5d66")
             painter.setPen(QtGui.QPen(pen_color, 1.5))
             painter.setBrush(QtGui.QColor(32, 33, 36, 180))

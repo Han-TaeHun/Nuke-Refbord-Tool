@@ -30,7 +30,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform)
         self.setTransformationAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
-        self.setViewportUpdateMode(QtWidgets.QGraphicsView.BoundingRectViewportUpdate)
+        self.setViewportUpdateMode(QtWidgets.QGraphicsView.FullViewportUpdate)
+        self.setOptimizationFlag(QtWidgets.QGraphicsView.DontSavePainterState, False)
         self.setBackgroundBrush(QtGui.QColor("#17181a"))
         self.file_manager = FileManager()
         self._panning = False
