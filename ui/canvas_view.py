@@ -37,6 +37,11 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._panning = False
         self._last_pan_point = QtCore.QPoint()
         self._pan_sensitivity = 1.0
+        self._updating_text_toolbar = False
+        self._build_text_toolbar()
+        self.scene().selectionChanged.connect(self._update_text_toolbar)
+        self.horizontalScrollBar().valueChanged.connect(lambda _: self._update_text_toolbar_position())
+        self.verticalScrollBar().valueChanged.connect(lambda _: self._update_text_toolbar_position())
 
     def add_image(self, path, scene_pos=None):
         if not path or not os.path.exists(path):
@@ -53,6 +58,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.scene().clearSelection()
         item.setSelected(True)
         self.boardChanged.emit()
+        self._update_text_toolbar()
         return item
 
     def clear_board(self):
@@ -78,6 +84,34 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         item.begin_edit()
         self.boardChanged.emit()
         return item
+
+    def current_note_item(self):
+        focus_item = self.scene().focusItem()
+        if isinstance(focus_item, RefNoteItem):
+            return focus_item
+        selected_notes = [item for item in self.scene().selectedItems() if isinstance(item, RefNoteItem)]
+        return selected_notes[0] if selected_notes else None
+
+    def apply_text_format(self, bold=None, italic=None, underline=None, point_size=None):
+        if self._updating_text_toolbar:
+            return False
+        note = self.current_note_item()
+        if note is None:
+            return False
+        note.apply_text_format(
+            bold=bold,
+            italic=italic,
+            underline=underline,
+            point_size=point_size,
+        )
+        self.boardChanged.emit()
+        self._sync_text_toolbar_state(note)
+        self._update_text_toolbar_position()
+        return True
+
+    def resizeEvent(self, event):
+        super(RefCanvasView, self).resizeEvent(event)
+        self._update_text_toolbar_position()
 
     def dragEnterEvent(self, event):
         if self._event_has_images(event):
@@ -107,6 +141,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             factor = 1.15 if delta > 0 else 1.0 / 1.15
             self.scale(factor, factor)
             self.boardChanged.emit()
+            self._update_text_toolbar_position()
             event.accept()
             return
         super(RefCanvasView, self).wheelEvent(event)
@@ -163,6 +198,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             event.accept()
             return
         super(RefCanvasView, self).mouseMoveEvent(event)
+        self._update_text_toolbar_position()
 
     def mouseReleaseEvent(self, event):
         if self._panning:
@@ -171,6 +207,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             event.accept()
             return
         super(RefCanvasView, self).mouseReleaseEvent(event)
+        self._update_text_toolbar_position()
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
@@ -181,6 +218,93 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         action = menu.exec_(event.globalPos())
         if action == new_text_action:
             self.add_note(self.mapToScene(event.pos()))
+
+    def _build_text_toolbar(self):
+        self.text_toolbar = QtWidgets.QFrame(self.viewport())
+        self.text_toolbar.setObjectName("RefBoardFloatingTextToolbar")
+        self.text_toolbar.setFixedHeight(36)
+        self.text_toolbar.hide()
+
+        layout = QtWidgets.QHBoxLayout(self.text_toolbar)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(5)
+
+        self.text_bold_button = self._floating_tool_button("B", "Bold")
+        self.text_italic_button = self._floating_tool_button("I", "Italic")
+        self.text_underline_button = self._floating_tool_button("U", "Underline")
+
+        self.text_size_box = QtWidgets.QSpinBox(self.text_toolbar)
+        self.text_size_box.setObjectName("RefBoardFontSizeBox")
+        self.text_size_box.setRange(6, 144)
+        self.text_size_box.setValue(18)
+        self.text_size_box.setFixedWidth(62)
+        self.text_size_box.setToolTip("Font size")
+
+        layout.addWidget(self.text_bold_button)
+        layout.addWidget(self.text_italic_button)
+        layout.addWidget(self.text_underline_button)
+        layout.addSpacing(4)
+        layout.addWidget(self.text_size_box)
+
+        self.text_toolbar.adjustSize()
+        self.text_bold_button.clicked.connect(
+            lambda: self.apply_text_format(bold=self.text_bold_button.isChecked())
+        )
+        self.text_italic_button.clicked.connect(
+            lambda: self.apply_text_format(italic=self.text_italic_button.isChecked())
+        )
+        self.text_underline_button.clicked.connect(
+            lambda: self.apply_text_format(underline=self.text_underline_button.isChecked())
+        )
+        self.text_size_box.valueChanged.connect(lambda value: self.apply_text_format(point_size=value))
+
+    def _floating_tool_button(self, label, tooltip):
+        button = QtWidgets.QToolButton(self.text_toolbar)
+        button.setText(label)
+        button.setToolTip(tooltip)
+        button.setCheckable(True)
+        button.setFixedSize(QtCore.QSize(28, 26))
+        return button
+
+    def _update_text_toolbar(self):
+        note = self.current_note_item()
+        if note is None:
+            self.text_toolbar.hide()
+            return
+        self._sync_text_toolbar_state(note)
+        self._update_text_toolbar_position()
+        self.text_toolbar.show()
+        self.text_toolbar.raise_()
+
+    def _update_text_toolbar_position(self):
+        if not hasattr(self, "text_toolbar") or not self.text_toolbar.isVisible():
+            return
+        note = self.current_note_item()
+        if note is None:
+            self.text_toolbar.hide()
+            return
+        scene_rect = note.mapToScene(note.text_bounding_rect()).boundingRect()
+        top_center = self.mapFromScene(scene_rect.center().x(), scene_rect.top())
+        x = int(top_center.x() - self.text_toolbar.width() * 0.5)
+        y = int(top_center.y() - self.text_toolbar.height() - 10)
+        x = max(8, min(x, self.viewport().width() - self.text_toolbar.width() - 8))
+        y = max(8, y)
+        self.text_toolbar.move(x, y)
+        self.text_toolbar.raise_()
+
+    def _sync_text_toolbar_state(self, note):
+        if self._updating_text_toolbar:
+            return
+        self._updating_text_toolbar = True
+        font = note.current_text_font()
+        self.text_bold_button.setChecked(font.bold())
+        self.text_italic_button.setChecked(font.italic())
+        self.text_underline_button.setChecked(font.underline())
+        point_size = font.pointSize()
+        if point_size <= 0:
+            point_size = 18
+        self.text_size_box.setValue(point_size)
+        self._updating_text_toolbar = False
 
     def _next_z_value(self):
         values = [item.zValue() for item in self.image_items() + self.note_items()]
@@ -303,7 +427,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             if isinstance(item, RefImageItem):
                 item_rect = item.mapToScene(item.image_bounding_rect()).boundingRect()
             else:
-                item_rect = item.mapToScene(item.boundingRect()).boundingRect()
+                item_rect = item.mapToScene(item.text_bounding_rect()).boundingRect()
             rect = item_rect if rect.isNull() else rect.united(item_rect)
         if rect.isNull() or rect.width() <= 0 or rect.height() <= 0:
             return False

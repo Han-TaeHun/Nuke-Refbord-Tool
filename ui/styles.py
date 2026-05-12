@@ -23,6 +23,11 @@ QFrame#RefBoardToolbarPlaceholder {
     border: 0;
     border-bottom: 1px solid #323438;
 }
+QFrame#RefBoardFloatingTextToolbar {
+    background: #25272b;
+    border: 1px solid #3d4047;
+    border-radius: 6px;
+}
 QToolButton, QPushButton {
     background: #303238;
     border: 1px solid #3d4047;
@@ -32,8 +37,19 @@ QToolButton, QPushButton {
 QToolButton:hover, QPushButton:hover {
     background: #3a3d45;
 }
+QToolButton:checked {
+    background: #4c9aff;
+    color: #101114;
+}
 QToolButton:pressed, QPushButton:pressed {
     background: #4c9aff;
     color: #101114;
+}
+QSpinBox#RefBoardFontSizeBox {
+    background: #18191c;
+    border: 1px solid #3d4047;
+    border-radius: 4px;
+    padding: 4px 6px;
+    color: #e7e7e7;
 }
 """
