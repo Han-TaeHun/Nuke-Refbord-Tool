@@ -74,10 +74,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         super(RefCanvasView, self).dragMoveEvent(event)
 
     def dropEvent(self, event):
-        paths = self._image_paths_from_mime(event.mimeData(), download_remote=True)
-        image_path = self._save_mime_image(event.mimeData())
-        if image_path:
-            paths.append(image_path)
+        paths = self._image_paths_from_mime(event.mimeData(), download_remote=True, include_image_data=True)
         if not paths:
             super(RefCanvasView, self).dropEvent(event)
             return
@@ -168,32 +165,85 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         mime = event.mimeData()
         return bool(self._image_paths_from_mime(mime)) or mime.hasImage() or self._mime_has_remote_url(mime)
 
-    def _image_paths_from_mime(self, mime, download_remote=False):
+    def _image_paths_from_mime(self, mime, download_remote=False, include_image_data=False):
         paths = []
+        remote_urls = []
         if mime.hasUrls():
             for url in mime.urls():
                 if url.isLocalFile():
                     path = url.toLocalFile()
                     if os.path.splitext(path)[1].lower() in SUPPORTED_IMAGE_EXTENSIONS:
                         paths.append(path)
-                elif download_remote:
-                    path = self._download_image_url(url.toString())
-                    if path:
-                        paths.append(path)
+                else:
+                    remote_urls.append(url.toString())
         if mime.hasText():
             text_path = mime.text().strip().strip('"')
             if self._is_supported_image_path(text_path):
                 paths.append(text_path)
-            elif download_remote:
-                path = self._download_image_url(text_path)
+            else:
+                remote_urls.extend(self._remote_urls_from_text(text_path))
+        if download_remote:
+            for url in self._dedupe_urls(remote_urls):
+                path = self._download_image_url(url)
                 if path:
                     paths.append(path)
-        return paths
+        if include_image_data and not paths:
+            image_path = self._save_mime_image(mime)
+            if image_path:
+                paths.append(image_path)
+        return self._dedupe_paths(paths)
 
     def _event_pos(self, event):
         if hasattr(event, "position"):
             return event.position().toPoint()
         return event.pos()
+
+    def _dedupe_paths(self, paths):
+        unique_paths = []
+        seen = set()
+        for path in paths:
+            normalized = os.path.normcase(os.path.abspath(path))
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_paths.append(path)
+        return unique_paths
+
+    def _dedupe_urls(self, urls):
+        unique_urls = []
+        seen = set()
+        for url in urls:
+            if not self._is_remote_url(url):
+                continue
+            normalized = self._normalize_url(url)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_urls.append(url)
+        return unique_urls
+
+    def _remote_urls_from_text(self, text):
+        urls = []
+        for token in text.replace('"', " ").replace("'", " ").split():
+            token = token.strip("()[]<>;,")
+            if self._is_remote_url(token):
+                urls.append(token)
+        if not urls and self._is_remote_url(text):
+            urls.append(text)
+        return urls
+
+    def _normalize_url(self, url):
+        parsed = urllib.parse.urlparse(url.strip())
+        return urllib.parse.urlunparse(
+            (
+                parsed.scheme.lower(),
+                parsed.netloc.lower(),
+                parsed.path,
+                "",
+                parsed.query,
+                "",
+            )
+        )
 
     def _selected_image_items(self):
         return [item for item in self.scene().selectedItems() if isinstance(item, RefImageItem)]
@@ -287,10 +337,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def paste_images_from_clipboard(self):
         clipboard = QtWidgets.QApplication.clipboard()
         mime = clipboard.mimeData()
-        paths = self._image_paths_from_mime(mime)
-        image_path = self._save_mime_image(mime)
-        if image_path:
-            paths.append(image_path)
+        paths = self._image_paths_from_mime(mime, include_image_data=True)
         if not paths:
             return False
 
