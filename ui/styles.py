@@ -18,6 +18,11 @@ QToolBar {
     border-bottom: 1px solid #323438;
     spacing: 4px;
 }
+QFrame#RefBoardToolbarPlaceholder {
+    background: #25272b;
+    border: 0;
+    border-bottom: 1px solid #323438;
+}
 QToolButton, QPushButton {
     background: #303238;
     border: 1px solid #3d4047;

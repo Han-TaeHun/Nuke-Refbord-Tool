@@ -34,6 +34,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.file_manager = FileManager()
         self._panning = False
         self._last_pan_point = QtCore.QPoint()
+        self._pan_sensitivity = 1.0
 
     def add_image(self, path, scene_pos=None):
         if not path or not os.path.exists(path):
@@ -100,6 +101,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             if self.paste_images_from_clipboard():
                 event.accept()
                 return
+        if event.key() == QtCore.Qt.Key_F:
+            if self.frame_selected_or_all_images():
+                event.accept()
+                return
         if event.key() in (QtCore.Qt.Key_Delete, QtCore.Qt.Key_Backspace):
             if self.delete_selected_items():
                 event.accept()
@@ -119,7 +124,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             event.button() == QtCore.Qt.LeftButton and event.modifiers() & QtCore.Qt.AltModifier
         ):
             self._panning = True
-            self._last_pan_point = event.pos()
+            self._last_pan_point = self._event_pos(event)
             self.setCursor(QtCore.Qt.ClosedHandCursor)
             event.accept()
             return
@@ -127,9 +132,15 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def mouseMoveEvent(self, event):
         if self._panning:
-            delta = self.mapToScene(event.pos()) - self.mapToScene(self._last_pan_point)
-            self.translate(delta.x(), delta.y())
-            self._last_pan_point = event.pos()
+            current_pos = self._event_pos(event)
+            delta = current_pos - self._last_pan_point
+            self.horizontalScrollBar().setValue(
+                self.horizontalScrollBar().value() - int(delta.x() * self._pan_sensitivity)
+            )
+            self.verticalScrollBar().setValue(
+                self.verticalScrollBar().value() - int(delta.y() * self._pan_sensitivity)
+            )
+            self._last_pan_point = current_pos
             self.boardChanged.emit()
             event.accept()
             return
@@ -142,6 +153,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             event.accept()
             return
         super(RefCanvasView, self).mouseReleaseEvent(event)
+
+    def contextMenuEvent(self, event):
+        menu = QtWidgets.QMenu(self)
+        placeholder = menu.addAction("RefBoard menu placeholder")
+        placeholder.setEnabled(False)
+        menu.exec_(event.globalPos())
 
     def _next_z_value(self):
         values = [item.zValue() for item in self.image_items()]
@@ -180,6 +197,33 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def _selected_image_items(self):
         return [item for item in self.scene().selectedItems() if isinstance(item, RefImageItem)]
+
+    def frame_selected_or_all_images(self):
+        selected_items = self._selected_image_items()
+        return self._frame_items(selected_items or self.image_items())
+
+    def frame_all_images(self):
+        return self._frame_items(self.image_items())
+
+    def _frame_items(self, items):
+        if not items:
+            self.resetTransform()
+            self.centerOn(0, 0)
+            self.boardChanged.emit()
+            return True
+
+        rect = QtCore.QRectF()
+        for item in items:
+            item_rect = item.mapToScene(item.image_bounding_rect()).boundingRect()
+            rect = item_rect if rect.isNull() else rect.united(item_rect)
+        if rect.isNull() or rect.width() <= 0 or rect.height() <= 0:
+            return False
+
+        margin = max(rect.width(), rect.height()) * 0.08
+        rect = rect.adjusted(-margin, -margin, margin, margin)
+        self.fitInView(rect, QtCore.Qt.KeepAspectRatio)
+        self.boardChanged.emit()
+        return True
 
     def _is_supported_image_path(self, path):
         return (

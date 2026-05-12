@@ -24,5 +24,10 @@ class RefBoardPanel(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
+        self.toolbar = QtWidgets.QFrame(self)
+        self.toolbar.setObjectName("RefBoardToolbarPlaceholder")
+        self.toolbar.setFixedHeight(32)
+
         self.canvas = RefCanvasView(self)
+        layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas, 1)
