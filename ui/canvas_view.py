@@ -43,10 +43,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._last_pan_point = QtCore.QPoint()
         self._pan_sensitivity = 1.0
         self._updating_text_toolbar = False
+        self._build_empty_state()
         self._build_text_toolbar()
         self.scene().selectionChanged.connect(self._update_text_toolbar)
         self.horizontalScrollBar().valueChanged.connect(lambda _: self._update_text_toolbar_position())
         self.verticalScrollBar().valueChanged.connect(lambda _: self._update_text_toolbar_position())
+        self._update_empty_state()
 
     def add_image(self, path, scene_pos=None):
         if not path or not os.path.exists(path):
@@ -64,12 +66,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         item.setSelected(True)
         self.boardChanged.emit()
         self._update_text_toolbar()
+        self._update_empty_state()
         return item
 
     def clear_board(self):
         self.scene().clear()
         self.resetTransform()
         self.boardChanged.emit()
+        self._update_empty_state()
 
     def image_items(self):
         return [item for item in self.scene().items() if isinstance(item, RefImageItem)]
@@ -91,6 +95,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         item.setSelected(True)
         item.begin_edit()
         self.boardChanged.emit()
+        self._update_empty_state()
         return item
 
     def add_nodemark_link(self, backdrop_name, label, scene_pos=None):
@@ -103,6 +108,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.scene().clearSelection()
         item.setSelected(True)
         self.boardChanged.emit()
+        self._update_empty_state()
         return item
 
     def current_note_item(self):
@@ -145,6 +151,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def resizeEvent(self, event):
         super(RefCanvasView, self).resizeEvent(event)
+        self._update_empty_state_position()
         self._update_text_toolbar_position()
 
     def dragEnterEvent(self, event):
@@ -315,6 +322,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         )
         self.text_size_box.valueChanged.connect(lambda value: self.apply_text_format(point_size=value))
 
+    def _build_empty_state(self):
+        self.empty_state_label = QtWidgets.QLabel(self.viewport())
+        self.empty_state_label.setObjectName("RefBoardEmptyStateLabel")
+        self.empty_state_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.empty_state_label.setText(u">>> Please drag the image here <<<")
+        self.empty_state_label.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+        self.empty_state_label.hide()
+
     def _floating_tool_button(self, label, tooltip):
         button = QtWidgets.QToolButton(self.text_toolbar)
         button.setText(label)
@@ -382,6 +397,19 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.DEFAULT_TEXT_BACKGROUND,
         )
         self._updating_text_toolbar = False
+
+    def _update_empty_state(self):
+        has_content = bool(self.image_items() or self.note_items() or self.nodemark_items())
+        self.empty_state_label.setVisible(not has_content)
+        self._update_empty_state_position()
+
+    def _update_empty_state_position(self):
+        if not hasattr(self, "empty_state_label"):
+            return
+        self.empty_state_label.adjustSize()
+        x = int((self.viewport().width() - self.empty_state_label.width()) * 0.5)
+        y = int((self.viewport().height() - self.empty_state_label.height()) * 0.5)
+        self.empty_state_label.move(max(0, x), max(0, y))
 
     def _pick_text_color(self, target):
         note = self.current_note_item()
@@ -628,6 +656,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         for item in items:
             self.scene().removeItem(item)
         self.boardChanged.emit()
+        self._update_empty_state()
         return True
 
     def rotate_selected_items(self, angle_delta):

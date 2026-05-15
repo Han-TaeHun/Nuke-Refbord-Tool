@@ -28,6 +28,11 @@ QFrame#RefBoardFloatingTextToolbar {
     border: 1px solid #3d4047;
     border-radius: 6px;
 }
+QLabel#RefBoardEmptyStateLabel {
+    color: #8a8d94;
+    background: transparent;
+    font-size: 15px;
+}
 QToolButton, QPushButton {
     background: #303238;
     border: 1px solid #3d4047;
