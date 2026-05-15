@@ -19,6 +19,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     """Infinite-feeling canvas for image references."""
 
     boardChanged = QtCore.Signal()
+    DEFAULT_TEXT_COLOR = "#f2f2f2"
+    DEFAULT_TEXT_BACKGROUND = "#202124"
 
     def __init__(self, parent=None):
         super(RefCanvasView, self).__init__(parent)
@@ -92,7 +94,17 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         selected_notes = [item for item in self.scene().selectedItems() if isinstance(item, RefNoteItem)]
         return selected_notes[0] if selected_notes else None
 
-    def apply_text_format(self, bold=None, italic=None, underline=None, point_size=None):
+    def apply_text_format(
+        self,
+        bold=None,
+        italic=None,
+        underline=None,
+        strike_out=None,
+        point_size=None,
+        font_family=None,
+        text_color=None,
+        background_color=None,
+    ):
         if self._updating_text_toolbar:
             return False
         note = self.current_note_item()
@@ -102,7 +114,11 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             bold=bold,
             italic=italic,
             underline=underline,
+            strike_out=strike_out,
             point_size=point_size,
+            font_family=font_family,
+            text_color=text_color,
+            background_color=background_color,
         )
         self.boardChanged.emit()
         self._sync_text_toolbar_state(note)
@@ -222,16 +238,23 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def _build_text_toolbar(self):
         self.text_toolbar = QtWidgets.QFrame(self.viewport())
         self.text_toolbar.setObjectName("RefBoardFloatingTextToolbar")
-        self.text_toolbar.setFixedHeight(36)
+        self.text_toolbar.setFixedHeight(40)
         self.text_toolbar.hide()
 
         layout = QtWidgets.QHBoxLayout(self.text_toolbar)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(5)
 
+        self.text_color_button = self._color_tool_button("A", "Text color")
+        self.text_background_button = self._color_tool_button("Bg", "Text background color")
         self.text_bold_button = self._floating_tool_button("B", "Bold")
         self.text_italic_button = self._floating_tool_button("I", "Italic")
         self.text_underline_button = self._floating_tool_button("U", "Underline")
+        self.text_strike_button = self._floating_tool_button("S", "Strikethrough")
+
+        self.text_font_box = QtWidgets.QFontComboBox(self.text_toolbar)
+        self.text_font_box.setObjectName("RefBoardFontComboBox")
+        self.text_font_box.setFixedWidth(150)
 
         self.text_size_box = QtWidgets.QSpinBox(self.text_toolbar)
         self.text_size_box.setObjectName("RefBoardFontSizeBox")
@@ -240,13 +263,20 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.text_size_box.setFixedWidth(62)
         self.text_size_box.setToolTip("Font size")
 
+        layout.addWidget(self.text_color_button)
+        layout.addWidget(self.text_background_button)
+        layout.addSpacing(2)
         layout.addWidget(self.text_bold_button)
         layout.addWidget(self.text_italic_button)
         layout.addWidget(self.text_underline_button)
+        layout.addWidget(self.text_strike_button)
         layout.addSpacing(4)
+        layout.addWidget(self.text_font_box)
         layout.addWidget(self.text_size_box)
 
         self.text_toolbar.adjustSize()
+        self.text_color_button.clicked.connect(lambda: self._pick_text_color("foreground"))
+        self.text_background_button.clicked.connect(lambda: self._pick_text_color("background"))
         self.text_bold_button.clicked.connect(
             lambda: self.apply_text_format(bold=self.text_bold_button.isChecked())
         )
@@ -256,6 +286,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.text_underline_button.clicked.connect(
             lambda: self.apply_text_format(underline=self.text_underline_button.isChecked())
         )
+        self.text_strike_button.clicked.connect(
+            lambda: self.apply_text_format(strike_out=self.text_strike_button.isChecked())
+        )
+        self.text_font_box.currentFontChanged.connect(
+            lambda font: self.apply_text_format(font_family=font.family())
+        )
         self.text_size_box.valueChanged.connect(lambda value: self.apply_text_format(point_size=value))
 
     def _floating_tool_button(self, label, tooltip):
@@ -264,6 +300,13 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         button.setToolTip(tooltip)
         button.setCheckable(True)
         button.setFixedSize(QtCore.QSize(28, 26))
+        return button
+
+    def _color_tool_button(self, label, tooltip):
+        button = QtWidgets.QToolButton(self.text_toolbar)
+        button.setText(label)
+        button.setToolTip(tooltip)
+        button.setFixedSize(QtCore.QSize(36, 26))
         return button
 
     def _update_text_toolbar(self):
@@ -296,15 +339,61 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         if self._updating_text_toolbar:
             return
         self._updating_text_toolbar = True
-        font = note.current_text_font()
+        char_format = note.current_text_format()
+        font = char_format.font()
         self.text_bold_button.setChecked(font.bold())
         self.text_italic_button.setChecked(font.italic())
         self.text_underline_button.setChecked(font.underline())
+        self.text_strike_button.setChecked(font.strikeOut())
+        self.text_font_box.setCurrentFont(font)
         point_size = font.pointSize()
         if point_size <= 0:
             point_size = 18
         self.text_size_box.setValue(point_size)
+        self._set_color_button_color(
+            self.text_color_button,
+            char_format.foreground().color(),
+            self.DEFAULT_TEXT_COLOR,
+        )
+        self._set_color_button_color(
+            self.text_background_button,
+            char_format.background().color(),
+            self.DEFAULT_TEXT_BACKGROUND,
+        )
         self._updating_text_toolbar = False
+
+    def _pick_text_color(self, target):
+        note = self.current_note_item()
+        if note is None:
+            return
+        char_format = note.current_text_format()
+        if target == "foreground":
+            current = char_format.foreground().color()
+            fallback = self.DEFAULT_TEXT_COLOR
+        else:
+            current = char_format.background().color()
+            fallback = self.DEFAULT_TEXT_BACKGROUND
+        if not current.isValid():
+            current = QtGui.QColor(fallback)
+        color = QtWidgets.QColorDialog.getColor(current, self, "Select Color")
+        if not color.isValid():
+            return
+        if target == "foreground":
+            self.apply_text_format(text_color=color.name())
+        else:
+            self.apply_text_format(background_color=color.name())
+
+    def _set_color_button_color(self, button, color, fallback):
+        swatch = color if isinstance(color, QtGui.QColor) and color.isValid() else QtGui.QColor(fallback)
+        text_color = "#101114" if swatch.lightness() > 140 else "#f4f4f4"
+        button.setStyleSheet(
+            "QToolButton {{ background: {0}; color: {1}; border: 1px solid #3d4047; border-radius: 4px; }}"
+            "QToolButton:hover {{ border: 1px solid #7aaeff; }}"
+            "QToolButton:pressed {{ border: 1px solid #4c9aff; }}".format(
+                swatch.name(),
+                text_color,
+            )
+        )
 
     def _next_z_value(self):
         values = [item.zValue() for item in self.image_items() + self.note_items()]

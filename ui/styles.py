@@ -45,11 +45,14 @@ QToolButton:pressed, QPushButton:pressed {
     background: #4c9aff;
     color: #101114;
 }
-QSpinBox#RefBoardFontSizeBox {
+QFontComboBox#RefBoardFontComboBox, QSpinBox#RefBoardFontSizeBox {
     background: #18191c;
     border: 1px solid #3d4047;
     border-radius: 4px;
     padding: 4px 6px;
     color: #e7e7e7;
+}
+QSpinBox#RefBoardFontSizeBox {
+    min-width: 62px;
 }
 """

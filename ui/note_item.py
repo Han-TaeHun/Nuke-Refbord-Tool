@@ -152,7 +152,17 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             painter.restore()
         super(RefNoteItem, self).paint(painter, option, widget)
 
-    def apply_text_format(self, bold=None, italic=None, underline=None, point_size=None):
+    def apply_text_format(
+        self,
+        bold=None,
+        italic=None,
+        underline=None,
+        strike_out=None,
+        point_size=None,
+        font_family=None,
+        text_color=None,
+        background_color=None,
+    ):
         cursor = self.textCursor()
         if not cursor.hasSelection() and not self.is_editing():
             cursor.select(QtGui.QTextCursor.Document)
@@ -163,19 +173,34 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             char_format.setFontItalic(italic)
         if underline is not None:
             char_format.setFontUnderline(underline)
+        if strike_out is not None:
+            char_format.setFontStrikeOut(strike_out)
         if point_size is not None:
             char_format.setFontPointSize(float(point_size))
+        if font_family:
+            char_format.setFontFamily(font_family)
+        if text_color is not None:
+            char_format.setForeground(QtGui.QBrush(QtGui.QColor(text_color)))
+        if background_color is not None:
+            char_format.setBackground(QtGui.QBrush(QtGui.QColor(background_color)))
         cursor.mergeCharFormat(char_format)
         self.mergeCurrentCharFormat(char_format)
         self.setTextCursor(cursor)
         self._update_transform_origin()
         self.update()
 
-    def current_text_font(self):
+    def current_text_format(self):
         cursor = self.textCursor()
         if cursor.hasSelection() or self.is_editing():
-            return cursor.charFormat().font()
-        return self.font()
+            return cursor.charFormat()
+
+        char_format = QtGui.QTextCharFormat()
+        char_format.setFont(self.font())
+        char_format.setForeground(QtGui.QBrush(self.defaultTextColor()))
+        return char_format
+
+    def current_text_font(self):
+        return self.current_text_format().font()
 
     def to_model(self):
         return NoteModel(
