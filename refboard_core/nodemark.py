@@ -1,0 +1,114 @@
+import re
+
+from refboard_core.constants import (
+    NODEMARK_BACKDROP_COLOR,
+    NODEMARK_DEFAULT_LABEL,
+    NODEMARK_PREFIX,
+)
+
+
+def create_nodemark_from_selection():
+    nuke = _get_nuke_module()
+    if nuke is None:
+        return None
+
+    selected_nodes = list(nuke.selectedNodes())
+    if not selected_nodes:
+        nuke.message("Select one or more nodes in the Node Graph first.")
+        return None
+
+    label = nuke.getInput("RefBoard NodeMark label", NODEMARK_DEFAULT_LABEL)
+    if label is None:
+        return None
+
+    label = label.strip()
+    if not label:
+        nuke.message("NodeMark creation cancelled because the label was empty.")
+        return None
+
+    bbox = _selection_bbox(selected_nodes)
+    if bbox is None:
+        return None
+
+    label_slug = _slugify_label(label)
+    node_name = _unique_backdrop_name(label_slug, nuke)
+    return nuke.nodes.BackdropNode(
+        xpos=bbox["x"],
+        ypos=bbox["y"],
+        bdwidth=bbox["width"],
+        bdheight=bbox["height"],
+        tile_color=int(NODEMARK_BACKDROP_COLOR),
+        note_font_size=32,
+        label=label_slug,
+        name=node_name,
+    )
+
+
+def _selection_bbox(nodes):
+    if not nodes:
+        return None
+
+    rects = [_node_rect(node) for node in nodes]
+    min_x = min(rect["x"] for rect in rects)
+    min_y = min(rect["y"] for rect in rects)
+    max_x = max(rect["x"] + rect["width"] for rect in rects)
+    max_y = max(rect["y"] + rect["height"] for rect in rects)
+
+    label_band_height = 56
+    padding_left = 80
+    padding_right = 80
+    padding_top = 96
+    padding_bottom = 90
+    return {
+        "x": int(min_x - padding_left),
+        "y": int(min_y - padding_top),
+        "width": int((max_x - min_x) + padding_left + padding_right),
+        "height": int((max_y - min_y) + padding_top + padding_bottom + label_band_height),
+    }
+
+
+def _node_rect(node):
+    width = node.screenWidth() if hasattr(node, "screenWidth") else 100
+    height = node.screenHeight() if hasattr(node, "screenHeight") else 60
+    x = int(node.xpos())
+    y = int(node.ypos())
+    if hasattr(node, "Class") and node.Class() == "BackdropNode":
+        try:
+            width = int(node["bdwidth"].value())
+            height = int(node["bdheight"].value())
+        except Exception:
+            pass
+    return {
+        "x": x,
+        "y": y,
+        "width": int(width),
+        "height": int(height),
+    }
+
+
+def _unique_backdrop_name(label_slug, nuke):
+    base_name = "{0}{1}".format(NODEMARK_PREFIX, label_slug)
+    if nuke.toNode(base_name) is None:
+        return base_name
+
+    index = 1
+    while True:
+        candidate = "{0}_{1:02d}".format(base_name, index)
+        if nuke.toNode(candidate) is None:
+            return candidate
+        index += 1
+
+
+def _slugify_label(label):
+    slug = label.replace(" ", "_")
+    slug = re.sub(r"[^0-9A-Za-z_]+", "_", slug)
+    slug = re.sub(r"_+", "_", slug).strip("_")
+    return slug or NODEMARK_DEFAULT_LABEL
+
+
+def _get_nuke_module():
+    try:
+        import nuke
+    except ImportError:
+        return None
+    return nuke

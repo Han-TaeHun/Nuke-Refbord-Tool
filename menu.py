@@ -45,6 +45,15 @@ def open_refboard_panel():
     return show_panel()
 
 
+def create_refboard_nodemark():
+    """Create a NodeMark backdrop from the current Node Graph selection."""
+
+    _reload_plugin_modules()
+    from refboard_core.nodemark import create_nodemark_from_selection
+
+    return create_nodemark_from_selection()
+
+
 _ensure_plugin_path()
 
 try:
@@ -56,3 +65,8 @@ if nuke is not None:
     menu = nuke.menu("Nuke")
     refboard_menu = menu.addMenu(PLUGIN_NAME)
     refboard_menu.addCommand("Open Panel", open_refboard_panel)
+    try:
+        node_graph_menu = nuke.menu("Node Graph")
+        node_graph_menu.addCommand("RefBoard NodeMark", create_refboard_nodemark)
+    except Exception:
+        pass

@@ -5,6 +5,9 @@ PLUGIN_NAME = "Nuke RefBoard"
 PANEL_ID = "com.nukerefboard.panel"
 FORMAT_VERSION = "1.0"
 FILE_EXTENSION = ".refboard"
+NODEMARK_PREFIX = "RefBoardToolsetBackdrop_"
+NODEMARK_DEFAULT_LABEL = "NodeMark"
+NODEMARK_BACKDROP_COLOR = 0x2F4F6FFF
 
 SUPPORTED_IMAGE_EXTENSIONS = {
     ".bmp",
