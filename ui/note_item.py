@@ -41,7 +41,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         font = QtGui.QFont()
         font.setPointSize(18)
         self.setFont(font)
-        self.setTextWidth(240)
+        self._configure_text_layout()
         self.setTransformOriginPoint(self.text_bounding_rect().center())
         self.setCacheMode(QtWidgets.QGraphicsItem.NoCache)
 
@@ -129,11 +129,13 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             event.accept()
             return
         super(RefNoteItem, self).keyPressEvent(event)
+        self._configure_text_layout()
         self._update_transform_origin()
         self.update()
 
     def inputMethodEvent(self, event):
         super(RefNoteItem, self).inputMethodEvent(event)
+        self._configure_text_layout()
         self._update_transform_origin()
         self.update()
 
@@ -254,3 +256,9 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
 
     def _update_transform_origin(self):
         self.setTransformOriginPoint(self.text_bounding_rect().center())
+
+    def _configure_text_layout(self):
+        option = self.document().defaultTextOption()
+        option.setWrapMode(QtGui.QTextOption.NoWrap)
+        self.document().setDefaultTextOption(option)
+        self.setTextWidth(-1)
