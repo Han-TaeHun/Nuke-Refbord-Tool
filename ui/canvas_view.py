@@ -11,7 +11,10 @@ except ImportError:  # pragma: no cover - for newer host apps
 
 from refboard_core.file_manager import FileManager
 from refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
+from refboard_core.nodemark import list_nodemark_backdrops
 from ui.image_item import RefImageItem
+from ui.nodemark_dialog import AddNodeMarkDialog
+from ui.nodemark_item import RefNodeMarkItem
 from ui.note_item import RefNoteItem
 
 
@@ -74,6 +77,9 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def note_items(self):
         return [item for item in self.scene().items() if isinstance(item, RefNoteItem)]
 
+    def nodemark_items(self):
+        return [item for item in self.scene().items() if isinstance(item, RefNodeMarkItem)]
+
     def add_note(self, scene_pos=None, text="Text"):
         if scene_pos is None:
             scene_pos = self.mapToScene(self.viewport().rect().center())
@@ -84,6 +90,18 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.scene().clearSelection()
         item.setSelected(True)
         item.begin_edit()
+        self.boardChanged.emit()
+        return item
+
+    def add_nodemark_link(self, backdrop_name, label, scene_pos=None):
+        if scene_pos is None:
+            scene_pos = self.mapToScene(self.viewport().rect().center())
+        item = RefNodeMarkItem(backdrop_name, label)
+        item.setPos(scene_pos)
+        item.setZValue(self._next_z_value())
+        self.scene().addItem(item)
+        self.scene().clearSelection()
+        item.setSelected(True)
         self.boardChanged.emit()
         return item
 
@@ -228,12 +246,15 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
         new_text_action = menu.addAction("New Text")
+        add_nodemark_action = menu.addAction("Add NodeMark")
         menu.addSeparator()
         placeholder = menu.addAction("RefBoard menu placeholder")
         placeholder.setEnabled(False)
         action = menu.exec_(event.globalPos())
         if action == new_text_action:
             self.add_note(self.mapToScene(event.pos()))
+        elif action == add_nodemark_action:
+            self._prompt_add_nodemark(self.mapToScene(event.pos()))
 
     def _build_text_toolbar(self):
         self.text_toolbar = QtWidgets.QFrame(self.viewport())
@@ -396,7 +417,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         )
 
     def _next_z_value(self):
-        values = [item.zValue() for item in self.image_items() + self.note_items()]
+        values = [item.zValue() for item in self.image_items() + self.note_items() + self.nodemark_items()]
         return (max(values) + 1) if values else 1
 
     def _event_has_images(self, event):
@@ -490,7 +511,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         return [
             item
             for item in self.scene().selectedItems()
-            if isinstance(item, (RefImageItem, RefNoteItem))
+            if isinstance(item, (RefImageItem, RefNoteItem, RefNodeMarkItem))
         ]
 
     def _text_item_is_editing(self):
@@ -499,10 +520,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def frame_selected_or_all_images(self):
         selected_items = self._selected_board_items()
-        return self._frame_items(selected_items or (self.image_items() + self.note_items()))
+        return self._frame_items(selected_items or (self.image_items() + self.note_items() + self.nodemark_items()))
 
     def frame_all_images(self):
-        return self._frame_items(self.image_items() + self.note_items())
+        return self._frame_items(self.image_items() + self.note_items() + self.nodemark_items())
 
     def _frame_items(self, items):
         if not items:
@@ -515,8 +536,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         for item in items:
             if isinstance(item, RefImageItem):
                 item_rect = item.mapToScene(item.image_bounding_rect()).boundingRect()
-            else:
+            elif isinstance(item, RefNoteItem):
                 item_rect = item.mapToScene(item.text_bounding_rect()).boundingRect()
+            else:
+                item_rect = item.mapToScene(item.boundingRect()).boundingRect()
             rect = item_rect if rect.isNull() else rect.united(item_rect)
         if rect.isNull() or rect.width() <= 0 or rect.height() <= 0:
             return False
@@ -615,3 +638,33 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             item.setRotation(item.rotation() + angle_delta)
         self.boardChanged.emit()
         return True
+
+    def _prompt_add_nodemark(self, scene_pos):
+        nodemarks = list_nodemark_backdrops()
+        if not nodemarks:
+            QtWidgets.QMessageBox.information(
+                self,
+                "No NodeMarks",
+                "No backdrop nodes matching the RefBoard NodeMark naming rule were found in this script.",
+            )
+            return
+
+        label_counts = {}
+        for item in nodemarks:
+            base_label = item["label"]
+            count = label_counts.get(base_label, 0) + 1
+            label_counts[base_label] = count
+            display_label = base_label if count == 1 else "{0} ({1})".format(base_label, count)
+            item["display_label"] = display_label
+
+        dialog = AddNodeMarkDialog(nodemarks, self)
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
+            return
+
+        selected_item = dialog.selected_nodemark()
+        if not selected_item:
+            return
+
+        custom_label = dialog.display_label()
+        link_label = custom_label or selected_item["label"]
+        self.add_nodemark_link(selected_item["name"], link_label, scene_pos)

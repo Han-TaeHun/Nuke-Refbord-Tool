@@ -44,6 +44,56 @@ def create_nodemark_from_selection():
     )
 
 
+def list_nodemark_backdrops():
+    nuke = _get_nuke_module()
+    if nuke is None:
+        return []
+
+    nodemarks = []
+    for node in nuke.allNodes("BackdropNode"):
+        name = node.name()
+        if not name.startswith(NODEMARK_PREFIX):
+            continue
+        label = _display_label_for_node(node)
+        nodemarks.append(
+            {
+                "name": name,
+                "label": label,
+            }
+        )
+    nodemarks.sort(key=lambda item: item["label"].lower())
+    return nodemarks
+
+
+def jump_to_nodemark(backdrop_name):
+    nuke = _get_nuke_module()
+    if nuke is None:
+        return False
+
+    backdrop = nuke.toNode(backdrop_name)
+    if backdrop is None or backdrop.Class() != "BackdropNode":
+        return False
+
+    for node in nuke.allNodes():
+        try:
+            node.setSelected(False)
+        except Exception:
+            pass
+
+    backdrop.setSelected(True)
+    try:
+        backdrop.selectNodes(True)
+    except Exception:
+        pass
+
+    if hasattr(nuke, "zoomToFitSelected"):
+        nuke.zoomToFitSelected()
+        return True
+
+    nuke.zoom(1, [backdrop.xpos(), backdrop.ypos()])
+    return True
+
+
 def _selection_bbox(nodes):
     if not nodes:
         return None
@@ -104,6 +154,19 @@ def _slugify_label(label):
     slug = re.sub(r"[^0-9A-Za-z_]+", "_", slug)
     slug = re.sub(r"_+", "_", slug).strip("_")
     return slug or NODEMARK_DEFAULT_LABEL
+
+
+def _display_label_for_node(node):
+    try:
+        label = node["label"].value().strip()
+        if label:
+            return label
+    except Exception:
+        pass
+    name = node.name()
+    if name.startswith(NODEMARK_PREFIX):
+        return name[len(NODEMARK_PREFIX):]
+    return name
 
 
 def _get_nuke_module():
