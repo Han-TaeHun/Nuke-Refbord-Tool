@@ -22,6 +22,8 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.setObjectName("NukeRefBoardPanel")
         self.setWindowTitle(PLUGIN_NAME)
         self._is_pinned = False
+        self._is_dirty = False
+        self._suspend_dirty_tracking = False
         self._current_board_path = None
         self._icon_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -84,6 +86,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         layout.addWidget(self.canvas, 1)
         self.loading_overlay = RefBoardLoadingOverlay(self)
         self.save_toast = RefBoardSaveToast(self)
+        self.canvas.boardChanged.connect(self._on_board_changed)
         self.new_board_button.clicked.connect(self._new_board)
         self.import_board_button.clicked.connect(self._import_board)
         self.save_board_button.clicked.connect(self._save_board)
@@ -124,9 +127,11 @@ class RefBoardPanel(QtWidgets.QWidget):
         )
 
     def _new_board(self):
+        self._suspend_dirty_tracking = True
         self.canvas.clear_board()
+        self._suspend_dirty_tracking = False
         self._current_board_path = None
-        self.setWindowTitle(PLUGIN_NAME)
+        self._set_dirty(False)
 
     def _import_board(self):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -142,7 +147,7 @@ class RefBoardPanel(QtWidgets.QWidget):
     def _save_board(self):
         file_path = self._current_board_path or self._prompt_save_path()
         if not file_path:
-            return
+            return False
         self._serializer.save(
             file_path,
             self.canvas.board_model(),
@@ -151,8 +156,9 @@ class RefBoardPanel(QtWidgets.QWidget):
             self.canvas.nodemark_models(),
         )
         self._current_board_path = file_path
-        self.setWindowTitle("{0} - {1}".format(PLUGIN_NAME, os.path.basename(file_path)))
+        self._set_dirty(False)
         self.save_toast.show_bottom_left("RefBoard saved")
+        return True
 
     def _prompt_save_path(self):
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -173,10 +179,13 @@ class RefBoardPanel(QtWidgets.QWidget):
         QtWidgets.QApplication.processEvents()
         try:
             board_model, image_models, note_models, nodemark_models = self._serializer.load(file_path, extract_dir)
+            self._suspend_dirty_tracking = True
             self.canvas.load_board(board_model, image_models, note_models, nodemark_models)
+            self._suspend_dirty_tracking = False
             self._current_board_path = file_path
-            self.setWindowTitle("{0} - {1}".format(PLUGIN_NAME, os.path.basename(file_path)))
+            self._set_dirty(False)
         finally:
+            self._suspend_dirty_tracking = False
             self.loading_overlay.hide()
 
     def _set_window_pinned(self, pinned):
@@ -204,6 +213,39 @@ class RefBoardPanel(QtWidgets.QWidget):
         if hasattr(self, "save_toast") and self.save_toast.isVisible():
             self.save_toast.show_bottom_left(self.save_toast.body_label.text(), 2200)
 
+    def closeEvent(self, event):
+        if not self._is_dirty:
+            super(RefBoardPanel, self).closeEvent(event)
+            return
+
+        message_box = QtWidgets.QMessageBox(self)
+        message_box.setWindowTitle("Unsaved Changes")
+        message_box.setText("This board has unsaved changes.")
+        message_box.setInformativeText("Save before closing?")
+        message_box.setIcon(QtWidgets.QMessageBox.Warning)
+        save_button = message_box.addButton("Save", QtWidgets.QMessageBox.AcceptRole)
+        discard_button = message_box.addButton("Don't Save", QtWidgets.QMessageBox.DestructiveRole)
+        cancel_button = message_box.addButton("Cancel", QtWidgets.QMessageBox.RejectRole)
+        message_box.setDefaultButton(save_button)
+        message_box.exec_()
+
+        clicked = message_box.clickedButton()
+        if clicked == save_button:
+            if self._save_board():
+                super(RefBoardPanel, self).closeEvent(event)
+                event.accept()
+            else:
+                event.ignore()
+            return
+        if clicked == discard_button:
+            super(RefBoardPanel, self).closeEvent(event)
+            event.accept()
+            return
+        if clicked == cancel_button:
+            event.ignore()
+            return
+        event.ignore()
+
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
         toggle_loading_action = menu.addAction("Test Loading Overlay")
@@ -220,3 +262,17 @@ class RefBoardPanel(QtWidgets.QWidget):
             self.save_toast.show_bottom_left("RefBoard saved")
         elif action == hide_save_toast_action:
             self.save_toast.hide()
+
+    def _on_board_changed(self):
+        if self._suspend_dirty_tracking:
+            return
+        self._set_dirty(True)
+
+    def _set_dirty(self, dirty):
+        self._is_dirty = bool(dirty)
+        title = PLUGIN_NAME
+        if self._current_board_path:
+            title = "{0} - {1}".format(PLUGIN_NAME, os.path.basename(self._current_board_path))
+        if self._is_dirty:
+            title += " *"
+        self.setWindowTitle(title)

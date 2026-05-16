@@ -14,6 +14,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
 
     CHECKBOX_UNCHECKED = "[ ] "
     CHECKBOX_CHECKED = "[x] "
+    DEFAULT_CANVAS_COLOR = "#17181a"
     MIN_WIDTH = 180.0
     MIN_HEIGHT = 42.0
     FRAME_PADDING_X = 6.0
@@ -208,7 +209,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             self.setDefaultTextColor(color)
             char_format.setForeground(QtGui.QBrush(color))
         if background_color is not None:
-            color = QtGui.QColor(background_color)
+            color = self._parse_background_color(background_color)
             self._base_background_color = color
             char_format.setBackground(QtGui.QBrush(color))
         cursor.mergeCharFormat(char_format)
@@ -265,7 +266,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
                 "underline": font.underline(),
                 "strike_out": font.strikeOut(),
                 "text_color": foreground.name() if foreground.isValid() else "#f2f2f2",
-                "background_color": background.name() if background.isValid() else "#202124",
+                "background_color": self._serialize_background_color(background),
             },
         )
 
@@ -294,7 +295,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self.document().setDefaultFont(font)
 
         text_color = QtGui.QColor(style.get("text_color") or "#f2f2f2")
-        background_color = QtGui.QColor(style.get("background_color") or "#202124")
+        background_color = self._parse_background_color(style.get("background_color"))
         self._base_text_color = QtGui.QColor(text_color)
         self._base_background_color = QtGui.QColor(background_color)
         self.setDefaultTextColor(text_color)
@@ -310,6 +311,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         live_cursor = self.textCursor()
         live_cursor.select(QtGui.QTextCursor.Document)
         live_cursor.setCharFormat(char_format)
+        live_cursor.clearSelection()
         self.setTextCursor(live_cursor)
         self.document().adjustSize()
 
@@ -432,7 +434,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         prefix_width = QtGui.QFontMetricsF(self.font()).horizontalAdvance(self.CHECKBOX_UNCHECKED) + 2.0
         mask_rect = QtCore.QRectF(0.0, block_rect.top(), prefix_width, block_rect.height())
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(self._base_background_color))
+        painter.setBrush(QtGui.QBrush(self._mask_background_color()))
         painter.drawRect(mask_rect)
 
     def _paint_checklist_box(self, painter, block_rect, checked):
@@ -456,6 +458,34 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(QtGui.QPen(QtGui.QColor("#f3f4f6"), 1.2))
         painter.drawRoundedRect(box_rect, 2.8, 2.8)
+
+    def _parse_background_color(self, value):
+        if value in (None, "", "default"):
+            return QtGui.QColor("#202124")
+        if isinstance(value, QtGui.QColor):
+            return QtGui.QColor(value)
+        if isinstance(value, str) and value.lower() == "transparent":
+            return QtGui.QColor(0, 0, 0, 0)
+        color = QtGui.QColor(value)
+        return color if color.isValid() else QtGui.QColor("#202124")
+
+    def _serialize_background_color(self, color):
+        if not isinstance(color, QtGui.QColor) or not color.isValid():
+            return "#202124"
+        if color.alpha() == 0:
+            return "transparent"
+        return color.name()
+
+    def _mask_background_color(self):
+        if self._base_background_color.alpha() > 0:
+            return self._base_background_color
+        if self.scene() is not None:
+            views = self.scene().views()
+            if views:
+                brush = views[0].backgroundBrush()
+                if brush.style() != QtCore.Qt.NoBrush and brush.color().isValid():
+                    return brush.color()
+        return QtGui.QColor(self.DEFAULT_CANVAS_COLOR)
 
     def _begin_scale(self, item_pos):
         self._scaling = True

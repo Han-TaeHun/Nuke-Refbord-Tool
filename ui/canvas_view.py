@@ -86,6 +86,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         if scene_pos is None:
             scene_pos = self.mapToScene(self.viewport().rect().center())
         item = RefNoteItem(text)
+        self._wire_note_item(item)
         item.setPos(scene_pos)
         item.setZValue(self._next_z_value())
         self.scene().addItem(item)
@@ -144,6 +145,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             max_image_z = max(max_image_z, int(item.zValue()))
         for model in note_models or []:
             item = RefNoteItem.from_model(model)
+            self._wire_note_item(item)
             item.setZValue(max(max_image_z + 1, item.zValue()))
             self.scene().addItem(item)
             max_image_z = max(max_image_z, int(item.zValue()))
@@ -344,7 +346,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         layout.setSpacing(5)
 
         self.text_color_button = self._color_tool_button("A", "Text color")
-        self.text_background_button = self._color_tool_button("Bg", "Text background color")
+        self.text_background_button = self._color_tool_button("BG", "Text background color")
         self.text_bold_button = self._floating_tool_button("B", "Bold")
         self.text_italic_button = self._floating_tool_button("I", "Italic")
         self.text_underline_button = self._floating_tool_button("U", "Underline")
@@ -376,7 +378,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
         self.text_toolbar.adjustSize()
         self.text_color_button.clicked.connect(lambda: self._pick_text_color("foreground"))
-        self.text_background_button.clicked.connect(lambda: self._pick_text_color("background"))
+        self.text_background_button.clicked.connect(self._show_background_color_menu)
         self.text_bold_button.clicked.connect(
             lambda: self.apply_text_format(bold=self.text_bold_button.isChecked())
         )
@@ -506,8 +508,28 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         else:
             self.apply_text_format(background_color=color.name())
 
+    def _show_background_color_menu(self):
+        note = self.current_note_item()
+        if note is None:
+            return
+        menu = QtWidgets.QMenu(self)
+        transparent_action = menu.addAction("Transparent")
+        choose_color_action = menu.addAction("Choose Color...")
+        action = menu.exec_(self.text_background_button.mapToGlobal(QtCore.QPoint(0, self.text_background_button.height())))
+        if action == transparent_action:
+            self.apply_text_format(background_color="transparent")
+        elif action == choose_color_action:
+            self._pick_text_color("background")
+
     def _set_color_button_color(self, button, color, fallback):
         swatch = color if isinstance(color, QtGui.QColor) and color.isValid() else QtGui.QColor(fallback)
+        if swatch.alpha() == 0:
+            button.setStyleSheet(
+                "QToolButton { background: transparent; color: #d9dce2; border: 1px dashed #5d616b; border-radius: 4px; }"
+                "QToolButton:hover { border: 1px solid #7aaeff; }"
+                "QToolButton:pressed { border: 1px solid #4c9aff; }"
+            )
+            return
         text_color = "#101114" if swatch.lightness() > 140 else "#f4f4f4"
         button.setStyleSheet(
             "QToolButton {{ background: {0}; color: {1}; border: 1px solid #3d4047; border-radius: 4px; }}"
@@ -521,6 +543,18 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def _next_z_value(self):
         values = [item.zValue() for item in self.image_items() + self.note_items() + self.nodemark_items()]
         return (max(values) + 1) if values else 1
+
+    def _wire_note_item(self, item):
+        document = item.document()
+        if document is None or getattr(item, "_refboard_note_wired", False):
+            return
+        document.contentsChanged.connect(self._on_note_contents_changed)
+        item._refboard_note_wired = True
+
+    def _on_note_contents_changed(self):
+        self.boardChanged.emit()
+        self.viewport().update()
+        self._update_text_toolbar_position()
 
     def insert_checklist_item(self):
         note = self.current_note_item()
