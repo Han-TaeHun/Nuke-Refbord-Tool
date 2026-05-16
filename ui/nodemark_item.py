@@ -4,6 +4,8 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
+from models.nodemark_model import NodeMarkModel
+
 
 class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
     """Lightweight hyperlink-style item that jumps to a NodeMark backdrop."""
@@ -70,3 +72,19 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
             "NodeMark Missing",
             "This NodeMark backdrop could not be found in the current script.",
         )
+
+    def to_model(self):
+        return NodeMarkModel(
+            backdrop_name=self.backdrop_name,
+            display_label=self.toPlainText(),
+            x=self.pos().x(),
+            y=self.pos().y(),
+            z_order=int(self.zValue()),
+        )
+
+    @classmethod
+    def from_model(cls, model):
+        item = cls(model.backdrop_name, model.display_label)
+        item.setPos(model.x, model.y)
+        item.setZValue(model.z_order)
+        return item

@@ -111,6 +111,46 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._update_empty_state()
         return item
 
+    def board_model(self):
+        center = self.mapToScene(self.viewport().rect().center())
+        transform = self.transform()
+        zoom = float(transform.m11()) if transform.m11() else 1.0
+        from models.board_model import BoardModel
+
+        return BoardModel(
+            zoom=zoom,
+            offset_x=center.x(),
+            offset_y=center.y(),
+        )
+
+    def image_models(self):
+        return [item.to_model() for item in self.image_items()]
+
+    def note_models(self):
+        return [item.to_model() for item in self.note_items()]
+
+    def nodemark_models(self):
+        return [item.to_model() for item in self.nodemark_items()]
+
+    def load_board(self, board_model, image_models, note_models=None, nodemark_models=None):
+        self.clear_board()
+        for model in image_models or []:
+            if not model.file or not os.path.exists(model.file):
+                continue
+            pixmap = QtGui.QPixmap(model.file)
+            if pixmap.isNull():
+                continue
+            item = RefImageItem.from_model(model, pixmap)
+            self.scene().addItem(item)
+        for model in note_models or []:
+            self.scene().addItem(RefNoteItem.from_model(model))
+        for model in nodemark_models or []:
+            self.scene().addItem(RefNodeMarkItem.from_model(model))
+
+        self._restore_board_view(board_model)
+        self._update_empty_state()
+        self.boardChanged.emit()
+
     def current_note_item(self):
         focus_item = self.scene().focusItem()
         if isinstance(focus_item, RefNoteItem):
@@ -600,6 +640,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.fitInView(rect, QtCore.Qt.KeepAspectRatio)
         self.boardChanged.emit()
         return True
+
+    def _restore_board_view(self, board_model):
+        if board_model is None:
+            return
+        self.resetTransform()
+        zoom = max(0.05, min(20.0, float(getattr(board_model, "zoom", 1.0) or 1.0)))
+        self.scale(zoom, zoom)
+        self.centerOn(float(getattr(board_model, "offset_x", 0.0)), float(getattr(board_model, "offset_y", 0.0)))
 
     def _is_supported_image_path(self, path):
         return (

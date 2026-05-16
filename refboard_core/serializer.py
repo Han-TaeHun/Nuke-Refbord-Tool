@@ -7,13 +7,15 @@ import zipfile
 
 from models.board_model import BoardModel
 from models.image_model import ImageModel
+from models.nodemark_model import NodeMarkModel
+from models.note_model import NoteModel
 from refboard_core.constants import ASSETS_DIRNAME, FORMAT_VERSION, MANIFEST_NAME
 
 
 class RefBoardSerializer:
     """Read and write .refboard files as ZIP packages with a JSON manifest."""
 
-    def save(self, file_path, board_model, image_models):
+    def save(self, file_path, board_model, image_models, note_models=None, nodemark_models=None):
         temp_dir = tempfile.mkdtemp(prefix="nukerefboard_save_")
         try:
             assets_dir = os.path.join(temp_dir, ASSETS_DIRNAME)
@@ -37,8 +39,15 @@ class RefBoardSerializer:
                 )
                 manifest_items.append(saved_model.to_dict())
 
+            for model in note_models or []:
+                manifest_items.append(model.to_dict())
+
+            for model in nodemark_models or []:
+                manifest_items.append(model.to_dict())
+
             manifest = {
                 "format_version": FORMAT_VERSION,
+                "app_name": "Nuke RefBoard",
                 "canvas": board_model.to_dict(),
                 "items": manifest_items,
             }
@@ -65,11 +74,17 @@ class RefBoardSerializer:
             manifest = json.load(handle)
 
         board = BoardModel.from_dict(manifest.get("canvas", {}))
-        items = []
+        image_items = []
+        note_items = []
+        nodemark_items = []
         for item_data in manifest.get("items", []):
-            if item_data.get("type") != "image":
-                continue
-            model = ImageModel.from_dict(item_data)
-            model.file = os.path.join(extract_dir, model.file.replace("/", os.sep))
-            items.append(model)
-        return board, items
+            item_type = item_data.get("type")
+            if item_type == "image":
+                model = ImageModel.from_dict(item_data)
+                model.file = os.path.join(extract_dir, model.file.replace("/", os.sep))
+                image_items.append(model)
+            elif item_type == "note":
+                note_items.append(NoteModel.from_dict(item_data))
+            elif item_type == "nodemark":
+                nodemark_items.append(NodeMarkModel.from_dict(item_data))
+        return board, image_items, note_items, nodemark_items

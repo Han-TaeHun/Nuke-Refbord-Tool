@@ -205,12 +205,26 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         return self.current_text_format().font()
 
     def to_model(self):
+        char_format = self.current_text_format()
+        font = char_format.font()
+        foreground = char_format.foreground().color()
+        background = char_format.background().color()
         return NoteModel(
             id=self.note_id or "",
             text=self.toPlainText(),
             x=self.pos().x(),
             y=self.pos().y(),
             z_order=int(self.zValue()),
+            style={
+                "font_family": font.family(),
+                "font_size": font.pointSize() if font.pointSize() > 0 else 18,
+                "bold": font.bold(),
+                "italic": font.italic(),
+                "underline": font.underline(),
+                "strike_out": font.strikeOut(),
+                "text_color": foreground.name() if foreground.isValid() else "#f2f2f2",
+                "background_color": background.name() if background.isValid() else "#202124",
+            },
         )
 
     @classmethod
@@ -218,6 +232,17 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         item = cls(text=model.text, note_id=model.id)
         item.setPos(model.x, model.y)
         item.setZValue(model.z_order)
+        style = model.style or {}
+        item.apply_text_format(
+            bold=style.get("bold"),
+            italic=style.get("italic"),
+            underline=style.get("underline"),
+            strike_out=style.get("strike_out"),
+            point_size=style.get("font_size"),
+            font_family=style.get("font_family"),
+            text_color=style.get("text_color"),
+            background_color=style.get("background_color"),
+        )
         return item
 
     def _begin_scale(self, item_pos):

@@ -6,7 +6,9 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
-from refboard_core.constants import PLUGIN_NAME
+from refboard_core.constants import FILE_EXTENSION, PLUGIN_NAME
+from refboard_core.file_manager import FileManager
+from refboard_core.serializer import RefBoardSerializer
 from ui.canvas_view import RefCanvasView
 from ui.status_overlay import RefBoardLoadingOverlay, RefBoardSaveToast
 from ui.styles import PANEL_STYLE
@@ -20,11 +22,14 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.setObjectName("NukeRefBoardPanel")
         self.setWindowTitle(PLUGIN_NAME)
         self._is_pinned = False
+        self._current_board_path = None
         self._icon_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "resources",
             "icons",
         )
+        self._serializer = RefBoardSerializer()
+        self._file_manager = FileManager()
         self._build_ui()
 
     def _build_ui(self):
@@ -79,6 +84,12 @@ class RefBoardPanel(QtWidgets.QWidget):
         layout.addWidget(self.canvas, 1)
         self.loading_overlay = RefBoardLoadingOverlay(self)
         self.save_toast = RefBoardSaveToast(self)
+        self.new_board_button.clicked.connect(self._new_board)
+        self.import_board_button.clicked.connect(self._import_board)
+        self.save_board_button.clicked.connect(self._save_board)
+        self.switch_board_button.clicked.connect(lambda: self._show_placeholder_message("Switch Canvas"))
+        self.auto_load_board_button.clicked.connect(lambda: self._show_placeholder_message("Auto Load Canvas"))
+        self.settings_button.clicked.connect(lambda: self._show_placeholder_message("Settings"))
 
     def _toolbar_button(self, text, tooltip):
         button = QtWidgets.QToolButton(self.toolbar)
@@ -87,7 +98,6 @@ class RefBoardPanel(QtWidgets.QWidget):
         button.setToolTip(tooltip)
         button.setAutoRaise(False)
         button.setIconSize(QtCore.QSize(16, 16))
-        button.clicked.connect(lambda: self._show_placeholder_message(text))
         return button
 
     def _set_toolbar_button_icon(self, button, icon_name):
@@ -112,6 +122,62 @@ class RefBoardPanel(QtWidgets.QWidget):
             title,
             "{0} is a placeholder for the upcoming board workflow.".format(title),
         )
+
+    def _new_board(self):
+        self.canvas.clear_board()
+        self._current_board_path = None
+        self.setWindowTitle(PLUGIN_NAME)
+
+    def _import_board(self):
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Open RefBoard",
+            "",
+            "RefBoard Files (*{0})".format(FILE_EXTENSION),
+        )
+        if not file_path:
+            return
+        self._load_board_from_path(file_path)
+
+    def _save_board(self):
+        file_path = self._current_board_path or self._prompt_save_path()
+        if not file_path:
+            return
+        self._serializer.save(
+            file_path,
+            self.canvas.board_model(),
+            self.canvas.image_models(),
+            self.canvas.note_models(),
+            self.canvas.nodemark_models(),
+        )
+        self._current_board_path = file_path
+        self.setWindowTitle("{0} - {1}".format(PLUGIN_NAME, os.path.basename(file_path)))
+        self.save_toast.show_bottom_left("RefBoard saved")
+
+    def _prompt_save_path(self):
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save RefBoard",
+            "",
+            "RefBoard Files (*{0})".format(FILE_EXTENSION),
+        )
+        if not file_path:
+            return None
+        if not file_path.lower().endswith(FILE_EXTENSION):
+            file_path += FILE_EXTENSION
+        return file_path
+
+    def _load_board_from_path(self, file_path):
+        extract_dir = self._file_manager.extraction_dir(file_path)
+        self.loading_overlay.show_centered()
+        QtWidgets.QApplication.processEvents()
+        try:
+            board_model, image_models, note_models, nodemark_models = self._serializer.load(file_path, extract_dir)
+            self.canvas.load_board(board_model, image_models, note_models, nodemark_models)
+            self._current_board_path = file_path
+            self.setWindowTitle("{0} - {1}".format(PLUGIN_NAME, os.path.basename(file_path)))
+        finally:
+            self.loading_overlay.hide()
 
     def _set_window_pinned(self, pinned):
         self._is_pinned = bool(pinned)
