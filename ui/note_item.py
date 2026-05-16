@@ -141,15 +141,11 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self.update()
 
     def paint(self, painter, option, widget=None):
-        if self.toPlainText() or self.isSelected() or self.is_editing():
+        if self.isSelected() or self.is_editing():
             painter.save()
             rect = self.text_bounding_rect()
-            if self.isSelected() or self.is_editing():
-                pen_color = QtGui.QColor("#4c9aff")
-                fill_color = QtGui.QColor(32, 33, 36, 200)
-            else:
-                pen_color = QtGui.QColor("#4a4d56")
-                fill_color = QtGui.QColor(20, 21, 24, 145)
+            pen_color = QtGui.QColor("#4c9aff")
+            fill_color = QtGui.QColor(32, 33, 36, 200)
             painter.setPen(QtGui.QPen(pen_color, 1.5))
             painter.setBrush(fill_color)
             painter.drawRect(rect)
