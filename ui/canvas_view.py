@@ -39,6 +39,11 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.setOptimizationFlag(QtWidgets.QGraphicsView.DontSavePainterState, False)
         self.setBackgroundBrush(QtGui.QColor("#17181a"))
         self.file_manager = FileManager()
+        self._icon_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "resources",
+            "icons",
+        )
         self._panning = False
         self._last_pan_point = QtCore.QPoint()
         self._pan_sensitivity = 1.0
@@ -352,6 +357,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.text_underline_button = self._floating_tool_button("U", "Underline")
         self.text_strike_button = self._floating_tool_button("S", "Strikethrough")
         self.text_checklist_button = self._action_tool_button("Todo", "Insert checklist item", 46)
+        self._set_text_toolbar_icon(self.text_color_button, "icon_Text_Character.svg")
+        self._set_text_toolbar_icon(self.text_bold_button, "icon_Text_Blod.svg")
+        self._set_text_toolbar_icon(self.text_italic_button, "icon_Text_Italic.svg")
+        self._set_text_toolbar_icon(self.text_underline_button, "icon_Text_Underline.svg")
+        self._set_text_toolbar_icon(self.text_strike_button, "icon_Text_Strikethrough.svg")
+        self._set_text_toolbar_icon(self.text_checklist_button, "icon_Text_todo.svg")
 
         self.text_font_box = QtWidgets.QFontComboBox(self.text_toolbar)
         self.text_font_box.setObjectName("RefBoardFontComboBox")
@@ -419,6 +430,15 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         button.setCheckable(False)
         button.setFixedSize(QtCore.QSize(width, 26))
         return button
+
+    def _set_text_toolbar_icon(self, button, icon_name):
+        icon_path = os.path.join(self._icon_dir, icon_name)
+        if not os.path.exists(icon_path):
+            return
+        button.setIcon(QtGui.QIcon(icon_path))
+        button.setIconSize(QtCore.QSize(16, 16))
+        button.setText("")
+        button.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
 
     def _update_text_toolbar(self):
         note = self.current_note_item()
