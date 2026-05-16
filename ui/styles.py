@@ -96,4 +96,92 @@ QFontComboBox#RefBoardFontComboBox, QSpinBox#RefBoardFontSizeBox {
 QSpinBox#RefBoardFontSizeBox {
     min-width: 62px;
 }
+QDialog#RefBoardSettingsDialog {
+    background: #26282c;
+}
+QFrame#RefBoardSettingsFrame {
+    background: #2b2d31;
+    border: 1px solid #3b3e45;
+    border-radius: 8px;
+}
+QFrame#RefBoardSettingsNavPanel {
+    background: #33353a;
+    border: 1px solid #3e4249;
+    border-radius: 6px;
+    min-width: 260px;
+    max-width: 260px;
+}
+QTreeWidget#RefBoardSettingsTree {
+    background: transparent;
+    border: 0;
+    outline: none;
+}
+QTreeWidget#RefBoardSettingsTree::item {
+    min-height: 24px;
+    padding-left: 8px;
+}
+QTreeWidget#RefBoardSettingsTree::item:selected {
+    background: #52d7db;
+    color: #101114;
+}
+QTreeWidget#RefBoardSettingsTree::item:hover {
+    background: #3a3d45;
+}
+QFrame#RefBoardSettingsPagePanel {
+    background: transparent;
+    border: 0;
+}
+QLabel#RefBoardSettingsPageTitle {
+    color: #f3f5f7;
+    font-size: 20px;
+    font-weight: 600;
+    padding-bottom: 4px;
+}
+QLabel#RefBoardSettingsSectionTitle {
+    color: #f2f4f6;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid #444850;
+    padding-bottom: 4px;
+}
+QLabel#RefBoardSettingsFieldLabel {
+    color: #d5d8de;
+}
+QLineEdit#RefBoardSettingsLineEdit,
+QComboBox#RefBoardSettingsCombo,
+QSpinBox#RefBoardSettingsSpinBox,
+QTableWidget#RefBoardSettingsTable {
+    background: #232529;
+    border: 1px solid #3d4047;
+    border-radius: 4px;
+    color: #eceef2;
+    padding: 4px 6px;
+}
+QComboBox#RefBoardSettingsCombo::drop-down {
+    border: 0;
+    width: 20px;
+}
+QTableWidget#RefBoardSettingsTable {
+    gridline-color: #3d4047;
+}
+QTableWidget#RefBoardSettingsTable QHeaderView::section {
+    background: #2f3237;
+    color: #eceef2;
+    border: 0;
+    border-right: 1px solid #3d4047;
+    padding: 6px;
+}
+QFrame#RefBoardSettingsPlaceholderBox {
+    background: #232529;
+    border: 1px solid #3d4047;
+    border-radius: 6px;
+}
+QLabel#RefBoardSettingsPlaceholderText {
+    color: #aeb4bf;
+}
+QPushButton#RefBoardSettingsMiniButton {
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+}
 """

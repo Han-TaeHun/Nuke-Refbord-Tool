@@ -10,6 +10,7 @@ from refboard_core.constants import FILE_EXTENSION, PLUGIN_NAME
 from refboard_core.file_manager import FileManager
 from refboard_core.serializer import RefBoardSerializer
 from ui.canvas_view import RefCanvasView
+from ui.settings_dialog import RefBoardSettingsDialog
 from ui.status_overlay import RefBoardLoadingOverlay, RefBoardSaveToast
 from ui.styles import PANEL_STYLE
 
@@ -32,6 +33,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         )
         self._serializer = RefBoardSerializer()
         self._file_manager = FileManager()
+        self._settings_dialog = None
         self._build_ui()
 
     def _build_ui(self):
@@ -92,7 +94,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.save_board_button.clicked.connect(self._save_board)
         self.switch_board_button.clicked.connect(lambda: self._show_placeholder_message("Switch Canvas"))
         self.auto_load_board_button.clicked.connect(lambda: self._show_placeholder_message("Auto Load Canvas"))
-        self.settings_button.clicked.connect(lambda: self._show_placeholder_message("Settings"))
+        self.settings_button.clicked.connect(self._open_settings_dialog)
 
     def _toolbar_button(self, text, tooltip):
         button = QtWidgets.QToolButton(self.toolbar)
@@ -125,6 +127,13 @@ class RefBoardPanel(QtWidgets.QWidget):
             title,
             "{0} is a placeholder for the upcoming board workflow.".format(title),
         )
+
+    def _open_settings_dialog(self):
+        if self._settings_dialog is None:
+            self._settings_dialog = RefBoardSettingsDialog(self)
+        self._settings_dialog.show()
+        self._settings_dialog.raise_()
+        self._settings_dialog.activateWindow()
 
     def _new_board(self):
         self._suspend_dirty_tracking = True
