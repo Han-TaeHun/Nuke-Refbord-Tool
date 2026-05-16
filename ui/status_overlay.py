@@ -58,6 +58,7 @@ class RefBoardSaveToast(QtWidgets.QFrame):
         self._hide_timer = QtCore.QTimer(self)
         self._hide_timer.setSingleShot(True)
         self._hide_timer.timeout.connect(self.hide)
+        self._variant = "success"
         self._build_ui()
 
     def _build_ui(self):
@@ -72,15 +73,35 @@ class RefBoardSaveToast(QtWidgets.QFrame):
         layout.addWidget(self.body_label)
 
     def show_bottom_left(self, text="RefBoard saved", duration_ms=2200):
+        self._apply_variant("success")
+        self._show_bottom_left(text, duration_ms)
+
+    def show_error_bottom_left(self, text="RefBoard save failed", duration_ms=3200):
+        self._apply_variant("error")
+        self._show_bottom_left(text, duration_ms)
+
+    def _show_bottom_left(self, text, duration_ms):
         self.body_label.setText(text)
+        self.reposition_bottom_left()
+        self.show()
+        self.raise_()
+        self._hide_timer.start(max(400, int(duration_ms)))
+
+    def reposition_bottom_left(self):
         if self.parentWidget() is None:
-            self.show()
             return
         self.adjustSize()
         parent_rect = self.parentWidget().rect()
         x = 18
         y = max(0, parent_rect.height() - self.height() - 18)
         self.move(x, y)
-        self.show()
-        self.raise_()
-        self._hide_timer.start(max(400, int(duration_ms)))
+
+    def _apply_variant(self, variant):
+        self._variant = variant
+        self.setProperty("toastVariant", variant)
+        style = self.style()
+        style.unpolish(self)
+        style.polish(self)
+        self.body_label.setProperty("toastVariant", variant)
+        self.body_label.style().unpolish(self.body_label)
+        self.body_label.style().polish(self.body_label)

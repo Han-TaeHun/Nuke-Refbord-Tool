@@ -20,6 +20,8 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
         self.refboard_item_type = "image"
         self.source_path = source_path
         self.image_id = image_id
+        self._interaction_start_state = None
+        self.on_state_changed = None
         self._transform_mode = None
         self._drag_start_pos = QtCore.QPointF()
         self._drag_start_scale = 1.0
@@ -56,6 +58,8 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
         super(RefImageItem, self).wheelEvent(event)
 
     def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self._interaction_start_state = self.capture_state()
         if self.isSelected() and event.button() == QtCore.Qt.LeftButton:
             handle_name = self._handle_at(event.pos())
             if handle_name:
@@ -82,9 +86,12 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
     def mouseReleaseEvent(self, event):
         if self._transform_mode:
             self._transform_mode = None
+            self._notify_state_change()
             event.accept()
             return
         super(RefImageItem, self).mouseReleaseEvent(event)
+        if event.button() == QtCore.Qt.LeftButton:
+            self._notify_state_change()
 
     def hoverMoveEvent(self, event):
         if self.isSelected():
@@ -138,6 +145,38 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
 
     def image_bounding_rect(self):
         return super(RefImageItem, self).boundingRect()
+
+    def capture_state(self):
+        return {
+            "x": float(self.pos().x()),
+            "y": float(self.pos().y()),
+            "scale": float(self.scale()),
+            "rotation": float(self.rotation()),
+        }
+
+    def apply_state(self, state):
+        state = state or {}
+        self.setPos(float(state.get("x", self.pos().x())), float(state.get("y", self.pos().y())))
+        self.setScale(float(state.get("scale", self.scale())))
+        self.setRotation(float(state.get("rotation", self.rotation())))
+
+    def _notify_state_change(self):
+        before_state = self._interaction_start_state
+        self._interaction_start_state = None
+        if before_state is None:
+            return
+        after_state = self.capture_state()
+        if self._states_match(before_state, after_state):
+            return
+        if callable(self.on_state_changed):
+            self.on_state_changed(self, before_state, after_state)
+
+    def _states_match(self, before_state, after_state):
+        keys = ("x", "y", "scale", "rotation")
+        for key in keys:
+            if abs(float(before_state.get(key, 0.0)) - float(after_state.get(key, 0.0))) > 0.001:
+                return False
+        return True
 
     def _begin_transform(self, item_pos, mode):
         center = self.transformOriginPoint()

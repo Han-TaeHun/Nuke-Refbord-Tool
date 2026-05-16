@@ -148,13 +148,18 @@ class RefBoardPanel(QtWidgets.QWidget):
         file_path = self._current_board_path or self._prompt_save_path()
         if not file_path:
             return False
-        self._serializer.save(
-            file_path,
-            self.canvas.board_model(),
-            self.canvas.image_models(),
-            self.canvas.note_models(),
-            self.canvas.nodemark_models(),
-        )
+        try:
+            self._serializer.save(
+                file_path,
+                self.canvas.board_model(),
+                self.canvas.image_models(),
+                self.canvas.note_models(),
+                self.canvas.nodemark_models(),
+            )
+        except Exception as exc:
+            self.save_toast.show_error_bottom_left("RefBoard save failed")
+            self._show_save_failure_message(exc)
+            return False
         self._current_board_path = file_path
         self._set_dirty(False)
         self.save_toast.show_bottom_left("RefBoard saved")
@@ -211,7 +216,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         if hasattr(self, "loading_overlay") and self.loading_overlay.isVisible():
             self.loading_overlay.show_centered()
         if hasattr(self, "save_toast") and self.save_toast.isVisible():
-            self.save_toast.show_bottom_left(self.save_toast.body_label.text(), 2200)
+            self.save_toast.reposition_bottom_left()
 
     def closeEvent(self, event):
         if not self._is_dirty:
@@ -252,6 +257,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         hide_loading_action = menu.addAction("Hide Loading Overlay")
         menu.addSeparator()
         test_save_toast_action = menu.addAction("Test Save Toast")
+        test_save_error_toast_action = menu.addAction("Test Save Failed Toast")
         hide_save_toast_action = menu.addAction("Hide Save Toast")
         action = menu.exec_(event.globalPos())
         if action == toggle_loading_action:
@@ -260,6 +266,8 @@ class RefBoardPanel(QtWidgets.QWidget):
             self.loading_overlay.hide()
         elif action == test_save_toast_action:
             self.save_toast.show_bottom_left("RefBoard saved")
+        elif action == test_save_error_toast_action:
+            self.save_toast.show_error_bottom_left("RefBoard save failed")
         elif action == hide_save_toast_action:
             self.save_toast.hide()
 
@@ -276,3 +284,17 @@ class RefBoardPanel(QtWidgets.QWidget):
         if self._is_dirty:
             title += " *"
         self.setWindowTitle(title)
+
+    def set_max_undo_steps(self, steps):
+        return self.canvas.set_max_undo_steps(steps)
+
+    def max_undo_steps(self):
+        return self.canvas.max_undo_steps()
+
+    def _show_save_failure_message(self, exc):
+        message = str(exc).strip() or exc.__class__.__name__
+        QtWidgets.QMessageBox.warning(
+            self,
+            "Save Failed",
+            "RefBoard could not be saved.\n\n{0}".format(message),
+        )

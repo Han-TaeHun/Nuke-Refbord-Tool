@@ -26,6 +26,8 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         super(RefNoteItem, self).__init__(text, parent)
         self.refboard_item_type = "note"
         self.note_id = note_id
+        self._interaction_start_state = None
+        self.on_state_changed = None
         self._editing = False
         self._scaling = False
         self._drag_start_scale = 1.0
@@ -92,6 +94,8 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         event.accept()
 
     def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self._interaction_start_state = self.capture_state()
         if event.button() == QtCore.Qt.LeftButton and self._toggle_checklist_at(event.pos()):
             event.accept()
             return
@@ -111,9 +115,12 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
     def mouseReleaseEvent(self, event):
         if self._scaling:
             self._scaling = False
+            self._notify_state_change()
             event.accept()
             return
         super(RefNoteItem, self).mouseReleaseEvent(event)
+        if event.button() == QtCore.Qt.LeftButton:
+            self._notify_state_change()
 
     def hoverMoveEvent(self, event):
         if self.isSelected() and self._handle_at(event.pos()):
@@ -486,6 +493,38 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
                 if brush.style() != QtCore.Qt.NoBrush and brush.color().isValid():
                     return brush.color()
         return QtGui.QColor(self.DEFAULT_CANVAS_COLOR)
+
+    def capture_state(self):
+        return {
+            "x": float(self.pos().x()),
+            "y": float(self.pos().y()),
+            "scale": float(self.scale()),
+        }
+
+    def apply_state(self, state):
+        state = state or {}
+        self.setPos(float(state.get("x", self.pos().x())), float(state.get("y", self.pos().y())))
+        self.setScale(float(state.get("scale", self.scale())))
+        self._update_transform_origin()
+        self.update()
+
+    def _notify_state_change(self):
+        before_state = self._interaction_start_state
+        self._interaction_start_state = None
+        if before_state is None:
+            return
+        after_state = self.capture_state()
+        if self._states_match(before_state, after_state):
+            return
+        if callable(self.on_state_changed):
+            self.on_state_changed(self, before_state, after_state)
+
+    def _states_match(self, before_state, after_state):
+        keys = ("x", "y", "scale")
+        for key in keys:
+            if abs(float(before_state.get(key, 0.0)) - float(after_state.get(key, 0.0))) > 0.001:
+                return False
+        return True
 
     def _begin_scale(self, item_pos):
         self._scaling = True

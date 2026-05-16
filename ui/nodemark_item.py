@@ -15,6 +15,8 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         self.refboard_item_type = "nodemark"
         self.backdrop_name = backdrop_name
         self.label = label
+        self._interaction_start_state = None
+        self.on_state_changed = None
         self._pressed = False
         self._press_pos = QtCore.QPointF()
         self.setPlainText(label)
@@ -33,6 +35,8 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         self.setCursor(QtCore.Qt.PointingHandCursor)
 
     def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self._interaction_start_state = self.capture_state()
         self._pressed = True
         self._press_pos = event.pos()
         super(RefNodeMarkItem, self).mousePressEvent(event)
@@ -43,6 +47,8 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         if self._pressed and not moved and event.button() == QtCore.Qt.LeftButton:
             self._jump_to_backdrop()
         self._pressed = False
+        if event.button() == QtCore.Qt.LeftButton:
+            self._notify_state_change()
 
     def hoverEnterEvent(self, event):
         self.setDefaultTextColor(QtGui.QColor("#b7e3ff"))
@@ -89,3 +95,31 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         item.setPos(model.x, model.y)
         item.setZValue(model.z_order)
         return item
+
+    def capture_state(self):
+        return {
+            "x": float(self.pos().x()),
+            "y": float(self.pos().y()),
+        }
+
+    def apply_state(self, state):
+        state = state or {}
+        self.setPos(float(state.get("x", self.pos().x())), float(state.get("y", self.pos().y())))
+
+    def _notify_state_change(self):
+        before_state = self._interaction_start_state
+        self._interaction_start_state = None
+        if before_state is None:
+            return
+        after_state = self.capture_state()
+        if self._states_match(before_state, after_state):
+            return
+        if callable(self.on_state_changed):
+            self.on_state_changed(self, before_state, after_state)
+
+    def _states_match(self, before_state, after_state):
+        keys = ("x", "y")
+        for key in keys:
+            if abs(float(before_state.get(key, 0.0)) - float(after_state.get(key, 0.0))) > 0.001:
+                return False
+        return True

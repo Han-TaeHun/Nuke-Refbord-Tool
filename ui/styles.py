@@ -44,6 +44,11 @@ QFrame#RefBoardSaveToast {
     border: 1px solid #42634c;
     border-radius: 10px;
 }
+QFrame#RefBoardSaveToast[toastVariant="error"] {
+    background: rgba(64, 22, 24, 235);
+    border: 1px solid #8e4448;
+    border-radius: 10px;
+}
 QLabel#RefBoardLoadingTitle {
     color: #f1f3f5;
     background: transparent;
@@ -60,6 +65,9 @@ QLabel#RefBoardSaveToastText {
     background: transparent;
     font-size: 12px;
     font-weight: 600;
+}
+QLabel#RefBoardSaveToastText[toastVariant="error"] {
+    color: #ffd9da;
 }
 QToolButton, QPushButton {
     background: #303238;

@@ -16,6 +16,7 @@ from ui.image_item import RefImageItem
 from ui.nodemark_dialog import AddNodeMarkDialog
 from ui.nodemark_item import RefNodeMarkItem
 from ui.note_item import RefNoteItem
+from ui.undo_commands import AddBoardItemCommand, ItemStateChangeCommand, RemoveBoardItemsCommand
 
 
 class RefCanvasView(QtWidgets.QGraphicsView):
@@ -39,6 +40,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.setOptimizationFlag(QtWidgets.QGraphicsView.DontSavePainterState, False)
         self.setBackgroundBrush(QtGui.QColor("#17181a"))
         self.file_manager = FileManager()
+        self._undo_stack = QtWidgets.QUndoStack(self)
+        self._undo_limit = 50
+        self._undo_stack.setUndoLimit(self._undo_limit)
+        self._suspend_undo_tracking = False
         self._icon_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "resources",
@@ -64,19 +69,15 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             scene_pos = self.mapToScene(self.viewport().rect().center())
         item.setPos(scene_pos)
         item.setZValue(self._next_z_value())
-        self.scene().addItem(item)
-        self.scene().clearSelection()
-        item.setSelected(True)
-        self.boardChanged.emit()
-        self._update_text_toolbar()
-        self.viewport().update()
+        self._wire_item_callbacks(item)
+        self._undo_stack.push(AddBoardItemCommand(self, item, "Add Image"))
         return item
 
     def clear_board(self):
+        self.clear_undo_history()
         self.scene().clear()
         self.resetTransform()
-        self.boardChanged.emit()
-        self.viewport().update()
+        self._notify_scene_changed()
 
     def image_items(self):
         return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "image"]
@@ -92,27 +93,22 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             scene_pos = self.mapToScene(self.viewport().rect().center())
         item = RefNoteItem(text)
         self._wire_note_item(item)
+        self._wire_item_callbacks(item)
         item.setPos(scene_pos)
         item.setZValue(self._next_z_value())
-        self.scene().addItem(item)
-        self.scene().clearSelection()
+        self._undo_stack.push(AddBoardItemCommand(self, item, "Add Text"))
         item.setSelected(True)
         item.begin_edit()
-        self.boardChanged.emit()
-        self.viewport().update()
         return item
 
     def add_nodemark_link(self, backdrop_name, label, scene_pos=None):
         if scene_pos is None:
             scene_pos = self.mapToScene(self.viewport().rect().center())
         item = RefNodeMarkItem(backdrop_name, label)
+        self._wire_item_callbacks(item)
         item.setPos(scene_pos)
         item.setZValue(self._next_z_value())
-        self.scene().addItem(item)
-        self.scene().clearSelection()
-        item.setSelected(True)
-        self.boardChanged.emit()
-        self.viewport().update()
+        self._undo_stack.push(AddBoardItemCommand(self, item, "Add NodeMark"))
         return item
 
     def board_model(self):
@@ -139,6 +135,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def load_board(self, board_model, image_models, note_models=None, nodemark_models=None):
         self.clear_board()
         max_image_z = 0
+        self._suspend_undo_tracking = True
         for model in image_models or []:
             if not model.file or not os.path.exists(model.file):
                 continue
@@ -146,23 +143,27 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             if pixmap.isNull():
                 continue
             item = RefImageItem.from_model(model, pixmap)
+            self._wire_item_callbacks(item)
             self.scene().addItem(item)
             max_image_z = max(max_image_z, int(item.zValue()))
         for model in note_models or []:
             item = RefNoteItem.from_model(model)
             self._wire_note_item(item)
+            self._wire_item_callbacks(item)
             item.setZValue(max(max_image_z + 1, item.zValue()))
             self.scene().addItem(item)
             max_image_z = max(max_image_z, int(item.zValue()))
         for model in nodemark_models or []:
             item = RefNodeMarkItem.from_model(model)
+            self._wire_item_callbacks(item)
             item.setZValue(max(max_image_z + 1, item.zValue()))
             self.scene().addItem(item)
             max_image_z = max(max_image_z, int(item.zValue()))
+        self._suspend_undo_tracking = False
 
         self._restore_board_view(board_model)
-        self.boardChanged.emit()
-        self.viewport().update()
+        self.clear_undo_history()
+        self._notify_scene_changed()
 
     def current_note_item(self):
         focus_item = self.scene().focusItem()
@@ -245,6 +246,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         if self._text_item_is_editing():
             super(RefCanvasView, self).keyPressEvent(event)
             return
+        if event.matches(QtGui.QKeySequence.Undo):
+            if self.undo_last_action():
+                event.accept()
+                return
         if event.matches(QtGui.QKeySequence.Paste):
             if self.paste_images_from_clipboard():
                 event.accept()
@@ -314,6 +319,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         hide_loading_action = debug_menu.addAction("Hide Loading Overlay")
         debug_menu.addSeparator()
         test_save_toast_action = debug_menu.addAction("Test Save Toast")
+        test_save_error_toast_action = debug_menu.addAction("Test Save Failed Toast")
         hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
         menu.addSeparator()
         placeholder = menu.addAction("RefBoard menu placeholder")
@@ -335,6 +341,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             panel = self.window()
             if hasattr(panel, "save_toast"):
                 panel.save_toast.show_bottom_left("RefBoard saved")
+        elif action == test_save_error_toast_action:
+            panel = self.window()
+            if hasattr(panel, "save_toast"):
+                panel.save_toast.show_error_bottom_left("RefBoard save failed")
         elif action == hide_save_toast_action:
             panel = self.window()
             if hasattr(panel, "save_toast"):
@@ -598,20 +608,85 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         document.contentsChanged.connect(self._on_note_contents_changed)
         item._refboard_note_wired = True
 
+    def _wire_item_callbacks(self, item):
+        item.on_state_changed = self._on_item_state_changed
+
     def _on_note_contents_changed(self):
-        self.boardChanged.emit()
-        self.viewport().update()
+        self._notify_scene_changed()
         self._update_text_toolbar_position()
+
+    def _on_item_state_changed(self, item, before_state, after_state):
+        if self._suspend_undo_tracking:
+            return
+        self._undo_stack.push(
+            ItemStateChangeCommand(
+                self,
+                item,
+                before_state,
+                after_state,
+                "Transform Item" if "rotation" in after_state or "scale" in after_state else "Move Item",
+            )
+        )
 
     def insert_checklist_item(self):
         note = self.current_note_item()
         if note is None:
             note = self.add_note(text="")
         note.insert_checklist_item()
-        self.boardChanged.emit()
+        self._notify_scene_changed()
         self._update_text_toolbar()
         self._update_text_toolbar_position()
         return True
+
+    def undo_last_action(self):
+        if not self._undo_stack.canUndo():
+            return False
+        self._undo_stack.undo()
+        return True
+
+    def set_max_undo_steps(self, steps):
+        limit = max(1, int(steps or 1))
+        self._undo_limit = limit
+        self._undo_stack.setUndoLimit(limit)
+        return limit
+
+    def max_undo_steps(self):
+        return self._undo_limit
+
+    def clear_undo_history(self):
+        self._undo_stack.clear()
+
+    def _add_item_to_scene(self, item, select=False):
+        if getattr(item, "refboard_item_type", "") == "note":
+            self._wire_note_item(item)
+        self._wire_item_callbacks(item)
+        if item.scene() is not self.scene():
+            self.scene().addItem(item)
+        if select:
+            self.scene().clearSelection()
+            item.setSelected(True)
+        self._notify_scene_changed()
+
+    def _remove_item_from_scene(self, item):
+        if item.scene() is self.scene():
+            self.scene().removeItem(item)
+        self._notify_scene_changed()
+
+    def _apply_item_state(self, item, state):
+        if item is None:
+            return
+        self._suspend_undo_tracking = True
+        try:
+            if hasattr(item, "apply_state"):
+                item.apply_state(state)
+        finally:
+            self._suspend_undo_tracking = False
+        self._notify_scene_changed()
+
+    def _notify_scene_changed(self):
+        self.boardChanged.emit()
+        self._update_text_toolbar()
+        self.viewport().update()
 
     def _event_has_images(self, event):
         mime = event.mimeData()
@@ -826,10 +901,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         items = self._selected_board_items()
         if not items:
             return False
-        for item in items:
-            self.scene().removeItem(item)
-        self.boardChanged.emit()
-        self.viewport().update()
+        label = "Delete Items" if len(items) > 1 else "Delete Item"
+        self._undo_stack.push(RemoveBoardItemsCommand(self, items, label))
         return True
 
     def rotate_selected_items(self, angle_delta):
@@ -837,8 +910,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         if not items:
             return False
         for item in items:
-            item.setRotation(item.rotation() + angle_delta)
-        self.boardChanged.emit()
+            before_state = item.capture_state()
+            after_state = dict(before_state)
+            after_state["rotation"] = float(item.rotation() + angle_delta)
+            self._undo_stack.push(ItemStateChangeCommand(self, item, before_state, after_state, "Rotate Image"))
         return True
 
     def _prompt_add_nodemark(self, scene_pos):
