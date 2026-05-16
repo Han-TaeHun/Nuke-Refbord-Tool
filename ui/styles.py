@@ -23,6 +23,12 @@ QFrame#RefBoardToolbarPlaceholder {
     border: 0;
     border-bottom: 1px solid #323438;
 }
+QFrame#RefBoardToolbarSeparator {
+    background: #3b3e45;
+    border: 0;
+    margin-left: 6px;
+    margin-right: 6px;
+}
 QFrame#RefBoardFloatingTextToolbar {
     background: #25272b;
     border: 1px solid #3d4047;
