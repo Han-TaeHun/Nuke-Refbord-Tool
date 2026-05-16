@@ -5,9 +5,9 @@ import urllib.request
 from uuid import uuid4
 
 try:
-    from PySide2 import QtCore, QtGui, QtWidgets
+    from PySide2 import QtCore, QtGui, QtSvg, QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps
-    from PySide6 import QtCore, QtGui, QtWidgets
+    from PySide6 import QtCore, QtGui, QtSvg, QtWidgets
 
 from refboard_core.file_manager import FileManager
 from refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
@@ -435,10 +435,29 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         icon_path = os.path.join(self._icon_dir, icon_name)
         if not os.path.exists(icon_path):
             return
+        button._refboard_icon_name = icon_name
         button.setIcon(QtGui.QIcon(icon_path))
         button.setIconSize(QtCore.QSize(16, 16))
         button.setText("")
         button.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
+
+    def _set_tinted_svg_icon(self, button, icon_name, color):
+        icon_path = os.path.join(self._icon_dir, icon_name)
+        if not os.path.exists(icon_path):
+            return
+        renderer = QtSvg.QSvgRenderer(icon_path)
+        if not renderer.isValid():
+            return
+        size = QtCore.QSize(16, 16)
+        pixmap = QtGui.QPixmap(size)
+        pixmap.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(pixmap)
+        renderer.render(painter, QtCore.QRectF(0, 0, size.width(), size.height()))
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), color)
+        painter.end()
+        button.setIcon(QtGui.QIcon(pixmap))
+        button.setIconSize(size)
 
     def _update_text_toolbar(self):
         note = self.current_note_item()
@@ -543,6 +562,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def _set_color_button_color(self, button, color, fallback):
         swatch = color if isinstance(color, QtGui.QColor) and color.isValid() else QtGui.QColor(fallback)
+        if button is self.text_color_button:
+            self._set_tinted_svg_icon(button, getattr(button, "_refboard_icon_name", ""), swatch)
+            button.setStyleSheet(
+                "QToolButton { background: #2a2d33; color: #d9dce2; border: 1px solid #3d4047; border-radius: 4px; }"
+                "QToolButton:hover { border: 1px solid #7aaeff; }"
+                "QToolButton:pressed { border: 1px solid #4c9aff; }"
+            )
+            return
         if swatch.alpha() == 0:
             button.setStyleSheet(
                 "QToolButton { background: transparent; color: #d9dce2; border: 1px dashed #5d616b; border-radius: 4px; }"
