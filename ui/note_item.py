@@ -29,10 +29,12 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self._scaling = False
         self._drag_start_scale = 1.0
         self._drag_start_distance = 1.0
+        self._base_text_color = QtGui.QColor("#f2f2f2")
+        self._base_background_color = QtGui.QColor("#202124")
         self.setAcceptHoverEvents(True)
         self.setAcceptDrops(False)
         self.setInputMethodHints(QtCore.Qt.ImhNone)
-        self.setDefaultTextColor(QtGui.QColor("#f2f2f2"))
+        self.setDefaultTextColor(self._base_text_color)
         self.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
         self.setFlags(
             QtWidgets.QGraphicsItem.ItemIsMovable
@@ -142,7 +144,10 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         super(RefNoteItem, self).keyPressEvent(event)
         if insert_checklist_prefix:
             self.textCursor().insertText(self.CHECKBOX_UNCHECKED)
-            self._apply_checklist_block_style(self.textCursor().block(), False)
+            cursor = self.textCursor()
+            self._apply_checklist_block_style(cursor.block(), False)
+            cursor.clearSelection()
+            self.setTextCursor(cursor)
         self._configure_text_layout()
         self._update_transform_origin()
         self.update()
@@ -168,6 +173,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
                     painter.drawRect(handle_rect)
             painter.restore()
         super(RefNoteItem, self).paint(painter, option, widget)
+        self._paint_checklist_overlays(painter)
 
     def apply_text_format(
         self,
@@ -197,12 +203,32 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         if font_family:
             char_format.setFontFamily(font_family)
         if text_color is not None:
-            char_format.setForeground(QtGui.QBrush(QtGui.QColor(text_color)))
+            color = QtGui.QColor(text_color)
+            self._base_text_color = color
+            self.setDefaultTextColor(color)
+            char_format.setForeground(QtGui.QBrush(color))
         if background_color is not None:
-            char_format.setBackground(QtGui.QBrush(QtGui.QColor(background_color)))
+            color = QtGui.QColor(background_color)
+            self._base_background_color = color
+            char_format.setBackground(QtGui.QBrush(color))
         cursor.mergeCharFormat(char_format)
         self.mergeCurrentCharFormat(char_format)
         self.setTextCursor(cursor)
+        updated_font = QtGui.QFont(self.font())
+        if bold is not None:
+            updated_font.setBold(bool(bold))
+        if italic is not None:
+            updated_font.setItalic(bool(italic))
+        if underline is not None:
+            updated_font.setUnderline(bool(underline))
+        if strike_out is not None:
+            updated_font.setStrikeOut(bool(strike_out))
+        if point_size is not None:
+            updated_font.setPointSizeF(float(point_size))
+        if font_family:
+            updated_font.setFamily(font_family)
+        self.setFont(updated_font)
+        self.document().setDefaultFont(updated_font)
         self._update_transform_origin()
         self.update()
 
@@ -211,15 +237,10 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         if cursor.hasSelection() or self.is_editing():
             return cursor.charFormat()
 
-        if self.document().characterCount() > 1:
-            probe = QtGui.QTextCursor(self.document())
-            probe.movePosition(QtGui.QTextCursor.Start)
-            probe.movePosition(QtGui.QTextCursor.NextCharacter, QtGui.QTextCursor.KeepAnchor)
-            char_format = probe.charFormat()
-        else:
-            char_format = QtGui.QTextCharFormat()
+        char_format = QtGui.QTextCharFormat()
         char_format.setFont(self.font())
-        char_format.setForeground(QtGui.QBrush(self.defaultTextColor()))
+        char_format.setForeground(QtGui.QBrush(self._base_text_color))
+        char_format.setBackground(QtGui.QBrush(self._base_background_color))
         return char_format
 
     def current_text_font(self):
@@ -274,6 +295,8 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
 
         text_color = QtGui.QColor(style.get("text_color") or "#f2f2f2")
         background_color = QtGui.QColor(style.get("background_color") or "#202124")
+        self._base_text_color = QtGui.QColor(text_color)
+        self._base_background_color = QtGui.QColor(background_color)
         self.setDefaultTextColor(text_color)
 
         cursor = QtGui.QTextCursor(self.document())
@@ -303,8 +326,9 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
                 cursor.movePosition(QtGui.QTextCursor.EndOfBlock)
                 cursor.insertBlock()
         cursor.insertText(self.CHECKBOX_UNCHECKED)
-        self.setTextCursor(cursor)
         self._apply_checklist_block_style(cursor.block(), False)
+        cursor.clearSelection()
+        self.setTextCursor(cursor)
         self._configure_text_layout()
         self._update_transform_origin()
         self.update()
@@ -378,16 +402,60 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
     def _apply_checklist_block_style(self, block, completed):
         if not block.isValid():
             return
-        text_color = QtGui.QColor("#8f949c") if completed else self.defaultTextColor()
+        text_color = QtGui.QColor("#8f949c") if completed else QtGui.QColor(self._base_text_color)
         cursor = QtGui.QTextCursor(block)
         cursor.movePosition(QtGui.QTextCursor.StartOfBlock)
         cursor.movePosition(QtGui.QTextCursor.EndOfBlock, QtGui.QTextCursor.KeepAnchor)
         char_format = QtGui.QTextCharFormat()
         char_format.setFont(self.font())
         char_format.setForeground(QtGui.QBrush(text_color))
-        char_format.setBackground(QtGui.QBrush(QtCore.Qt.transparent))
+        char_format.setBackground(QtGui.QBrush(self._base_background_color))
         char_format.setFontStrikeOut(bool(completed))
         cursor.mergeCharFormat(char_format)
+
+    def _paint_checklist_overlays(self, painter):
+        layout = self.document().documentLayout()
+        if layout is None:
+            return
+        painter.save()
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        block = self.document().firstBlock()
+        while block.isValid():
+            if self._block_is_checklist(block):
+                block_rect = layout.blockBoundingRect(block)
+                self._paint_checklist_prefix_mask(painter, block_rect)
+                self._paint_checklist_box(painter, block_rect, self._block_is_checked(block))
+            block = block.next()
+        painter.restore()
+
+    def _paint_checklist_prefix_mask(self, painter, block_rect):
+        prefix_width = QtGui.QFontMetricsF(self.font()).horizontalAdvance(self.CHECKBOX_UNCHECKED) + 2.0
+        mask_rect = QtCore.QRectF(0.0, block_rect.top(), prefix_width, block_rect.height())
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QBrush(self._base_background_color))
+        painter.drawRect(mask_rect)
+
+    def _paint_checklist_box(self, painter, block_rect, checked):
+        box_size = 14.0
+        box_x = 1.0
+        box_y = block_rect.top() + max(0.0, (block_rect.height() - box_size) * 0.5)
+        box_rect = QtCore.QRectF(box_x, box_y, box_size, box_size)
+        if checked:
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(QtGui.QColor("#3b82f6"))
+            painter.drawRoundedRect(box_rect, 3.0, 3.0)
+            pen = QtGui.QPen(QtGui.QColor("#ffffff"), 1.7)
+            painter.setPen(pen)
+            tick = QtGui.QPainterPath()
+            tick.moveTo(box_rect.left() + 3.2, box_rect.center().y() + 0.2)
+            tick.lineTo(box_rect.left() + 6.1, box_rect.bottom() - 3.7)
+            tick.lineTo(box_rect.right() - 3.0, box_rect.top() + 3.7)
+            painter.drawPath(tick)
+            return
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(QtGui.QColor("#f3f4f6"), 1.2))
+        painter.drawRoundedRect(box_rect, 2.8, 2.8)
 
     def _begin_scale(self, item_pos):
         self._scaling = True
