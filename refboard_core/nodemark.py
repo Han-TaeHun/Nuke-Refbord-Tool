@@ -1,3 +1,4 @@
+# NodeMark 节点创建与跳转辅助 / NodeMark backdrop creation and jump helpers.
 import re
 
 from refboard_core.constants import (

@@ -1,3 +1,4 @@
+# NodeMark 超链接画布元素 / Hyperlink-style NodeMark canvas item.
 try:
     from PySide2 import QtCore, QtGui, QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps
