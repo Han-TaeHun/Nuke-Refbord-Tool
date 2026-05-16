@@ -44,11 +44,6 @@ QFrame#RefBoardSaveToast {
     border: 1px solid #42634c;
     border-radius: 10px;
 }
-QLabel#RefBoardEmptyStateLabel {
-    color: #8a8d94;
-    background: transparent;
-    font-size: 15px;
-}
 QLabel#RefBoardLoadingTitle {
     color: #f1f3f5;
     background: transparent;
