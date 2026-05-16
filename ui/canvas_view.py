@@ -349,6 +349,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.text_italic_button = self._floating_tool_button("I", "Italic")
         self.text_underline_button = self._floating_tool_button("U", "Underline")
         self.text_strike_button = self._floating_tool_button("S", "Strikethrough")
+        self.text_checklist_button = self._action_tool_button("Todo", "Insert checklist item", 46)
 
         self.text_font_box = QtWidgets.QFontComboBox(self.text_toolbar)
         self.text_font_box.setObjectName("RefBoardFontComboBox")
@@ -368,6 +369,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         layout.addWidget(self.text_italic_button)
         layout.addWidget(self.text_underline_button)
         layout.addWidget(self.text_strike_button)
+        layout.addWidget(self.text_checklist_button)
         layout.addSpacing(4)
         layout.addWidget(self.text_font_box)
         layout.addWidget(self.text_size_box)
@@ -387,6 +389,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.text_strike_button.clicked.connect(
             lambda: self.apply_text_format(strike_out=self.text_strike_button.isChecked())
         )
+        self.text_checklist_button.clicked.connect(self.insert_checklist_item)
         self.text_font_box.currentFontChanged.connect(
             lambda font: self.apply_text_format(font_family=font.family())
         )
@@ -405,6 +408,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         button.setText(label)
         button.setToolTip(tooltip)
         button.setFixedSize(QtCore.QSize(36, 26))
+        return button
+
+    def _action_tool_button(self, label, tooltip, width):
+        button = QtWidgets.QToolButton(self.text_toolbar)
+        button.setText(label)
+        button.setToolTip(tooltip)
+        button.setCheckable(False)
+        button.setFixedSize(QtCore.QSize(width, 26))
         return button
 
     def _update_text_toolbar(self):
@@ -510,6 +521,16 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def _next_z_value(self):
         values = [item.zValue() for item in self.image_items() + self.note_items() + self.nodemark_items()]
         return (max(values) + 1) if values else 1
+
+    def insert_checklist_item(self):
+        note = self.current_note_item()
+        if note is None:
+            note = self.add_note(text="")
+        note.insert_checklist_item()
+        self.boardChanged.emit()
+        self._update_text_toolbar()
+        self._update_text_toolbar_position()
+        return True
 
     def _event_has_images(self, event):
         mime = event.mimeData()

@@ -12,6 +12,8 @@ from models.note_model import NoteModel
 class RefNoteItem(QtWidgets.QGraphicsTextItem):
     """Editable text note item used by the reference board scene."""
 
+    CHECKBOX_UNCHECKED = "[ ] "
+    CHECKBOX_CHECKED = "[x] "
     MIN_WIDTH = 180.0
     MIN_HEIGHT = 42.0
     FRAME_PADDING_X = 6.0
@@ -87,6 +89,9 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         event.accept()
 
     def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton and self._toggle_checklist_at(event.pos()):
+            event.accept()
+            return
         if self.isSelected() and event.button() == QtCore.Qt.LeftButton and self._handle_at(event.pos()):
             self._begin_scale(event.pos())
             event.accept()
@@ -129,7 +134,15 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             self.end_edit()
             event.accept()
             return
+        insert_checklist_prefix = (
+            self.is_editing()
+            and event.key() in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter)
+            and self._current_block_is_checklist()
+        )
         super(RefNoteItem, self).keyPressEvent(event)
+        if insert_checklist_prefix:
+            self.textCursor().insertText(self.CHECKBOX_UNCHECKED)
+            self._apply_checklist_block_style(self.textCursor().block(), False)
         self._configure_text_layout()
         self._update_transform_origin()
         self.update()
@@ -242,6 +255,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         item.setZValue(model.z_order)
         item._apply_model_style(model.style or {})
         item._configure_text_layout()
+        item._restore_checklist_states()
         item._update_transform_origin()
         item.update()
         return item
@@ -275,6 +289,105 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         live_cursor.setCharFormat(char_format)
         self.setTextCursor(live_cursor)
         self.document().adjustSize()
+
+    def insert_checklist_item(self):
+        if self.toPlainText().strip() == "Text":
+            self.setPlainText("")
+        if not self.is_editing():
+            self.begin_edit()
+        cursor = self.textCursor()
+        if self.toPlainText():
+            block = cursor.block()
+            block_text = block.text() if block.isValid() else ""
+            if block_text.strip():
+                cursor.movePosition(QtGui.QTextCursor.EndOfBlock)
+                cursor.insertBlock()
+        cursor.insertText(self.CHECKBOX_UNCHECKED)
+        self.setTextCursor(cursor)
+        self._apply_checklist_block_style(cursor.block(), False)
+        self._configure_text_layout()
+        self._update_transform_origin()
+        self.update()
+
+    def _toggle_checklist_at(self, item_pos):
+        block = self._checklist_block_at(item_pos)
+        if not block.isValid():
+            return False
+        self._set_checklist_block_completed(block, not self._block_is_checked(block))
+        self._configure_text_layout()
+        self._update_transform_origin()
+        self.update()
+        return True
+
+    def _checklist_block_at(self, item_pos):
+        if item_pos.x() < -self.FRAME_PADDING_X or item_pos.y() < -self.FRAME_PADDING_Y:
+            return QtGui.QTextBlock()
+        position = self.document().documentLayout().hitTest(item_pos, QtCore.Qt.FuzzyHit)
+        if position < 0:
+            return QtGui.QTextBlock()
+        cursor = QtGui.QTextCursor(self.document())
+        cursor.setPosition(position)
+        block = cursor.block()
+        if not block.isValid() or not self._block_is_checklist(block):
+            return QtGui.QTextBlock()
+        char_index = max(0, position - block.position())
+        if char_index > 2:
+            return QtGui.QTextBlock()
+        return block
+
+    def _current_block_is_checklist(self):
+        block = self.textCursor().block()
+        return block.isValid() and self._block_is_checklist(block)
+
+    def _block_is_checklist(self, block):
+        if not block.isValid():
+            return False
+        text = block.text()
+        return text.startswith(self.CHECKBOX_UNCHECKED) or text.startswith(self.CHECKBOX_CHECKED)
+
+    def _block_is_checked(self, block):
+        return block.isValid() and block.text().startswith(self.CHECKBOX_CHECKED)
+
+    def _set_checklist_block_completed(self, block, completed):
+        if not block.isValid() or not self._block_is_checklist(block):
+            return
+        block_text = block.text()
+        if block_text.startswith(self.CHECKBOX_CHECKED):
+            content = block_text[len(self.CHECKBOX_CHECKED) :]
+        else:
+            content = block_text[len(self.CHECKBOX_UNCHECKED) :]
+        prefix = self.CHECKBOX_CHECKED if completed else self.CHECKBOX_UNCHECKED
+
+        cursor = QtGui.QTextCursor(block)
+        cursor.movePosition(QtGui.QTextCursor.StartOfBlock)
+        cursor.movePosition(QtGui.QTextCursor.EndOfBlock, QtGui.QTextCursor.KeepAnchor)
+        cursor.insertText(prefix + content)
+
+        refreshed_block = cursor.block()
+        if not refreshed_block.isValid():
+            refreshed_block = self.document().findBlock(block.position())
+        self._apply_checklist_block_style(refreshed_block, completed)
+
+    def _restore_checklist_states(self):
+        block = self.document().firstBlock()
+        while block.isValid():
+            if self._block_is_checklist(block):
+                self._apply_checklist_block_style(block, self._block_is_checked(block))
+            block = block.next()
+
+    def _apply_checklist_block_style(self, block, completed):
+        if not block.isValid():
+            return
+        text_color = QtGui.QColor("#8f949c") if completed else self.defaultTextColor()
+        cursor = QtGui.QTextCursor(block)
+        cursor.movePosition(QtGui.QTextCursor.StartOfBlock)
+        cursor.movePosition(QtGui.QTextCursor.EndOfBlock, QtGui.QTextCursor.KeepAnchor)
+        char_format = QtGui.QTextCharFormat()
+        char_format.setFont(self.font())
+        char_format.setForeground(QtGui.QBrush(text_color))
+        char_format.setBackground(QtGui.QBrush(QtCore.Qt.transparent))
+        char_format.setFontStrikeOut(bool(completed))
+        cursor.mergeCharFormat(char_format)
 
     def _begin_scale(self, item_pos):
         self._scaling = True
