@@ -34,10 +34,37 @@ QFrame#RefBoardFloatingTextToolbar {
     border: 1px solid #3d4047;
     border-radius: 6px;
 }
+QFrame#RefBoardLoadingOverlay {
+    background: rgba(25, 27, 31, 230);
+    border: 1px solid #454a53;
+    border-radius: 12px;
+}
+QFrame#RefBoardSaveToast {
+    background: rgba(27, 42, 33, 235);
+    border: 1px solid #42634c;
+    border-radius: 10px;
+}
 QLabel#RefBoardEmptyStateLabel {
     color: #8a8d94;
     background: transparent;
     font-size: 15px;
+}
+QLabel#RefBoardLoadingTitle {
+    color: #f1f3f5;
+    background: transparent;
+    font-size: 18px;
+    font-weight: 600;
+}
+QLabel#RefBoardLoadingBody {
+    color: #a7adb7;
+    background: transparent;
+    font-size: 12px;
+}
+QLabel#RefBoardSaveToastText {
+    color: #d8f2de;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 600;
 }
 QToolButton, QPushButton {
     background: #303238;

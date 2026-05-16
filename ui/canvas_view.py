@@ -255,6 +255,13 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         new_text_action = menu.addAction("New Text")
         add_nodemark_action = menu.addAction("Add NodeMark")
         menu.addSeparator()
+        debug_menu = menu.addMenu("Dev Debug Test")
+        test_loading_action = debug_menu.addAction("Test Loading Overlay")
+        hide_loading_action = debug_menu.addAction("Hide Loading Overlay")
+        debug_menu.addSeparator()
+        test_save_toast_action = debug_menu.addAction("Test Save Toast")
+        hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
+        menu.addSeparator()
         placeholder = menu.addAction("RefBoard menu placeholder")
         placeholder.setEnabled(False)
         action = menu.exec_(event.globalPos())
@@ -262,6 +269,22 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.add_note(self.mapToScene(event.pos()))
         elif action == add_nodemark_action:
             self._prompt_add_nodemark(self.mapToScene(event.pos()))
+        elif action == test_loading_action:
+            panel = self.window()
+            if hasattr(panel, "loading_overlay"):
+                panel.loading_overlay.show_centered()
+        elif action == hide_loading_action:
+            panel = self.window()
+            if hasattr(panel, "loading_overlay"):
+                panel.loading_overlay.hide()
+        elif action == test_save_toast_action:
+            panel = self.window()
+            if hasattr(panel, "save_toast"):
+                panel.save_toast.show_bottom_left("RefBoard saved")
+        elif action == hide_save_toast_action:
+            panel = self.window()
+            if hasattr(panel, "save_toast"):
+                panel.save_toast.hide()
 
     def _build_text_toolbar(self):
         self.text_toolbar = QtWidgets.QFrame(self.viewport())

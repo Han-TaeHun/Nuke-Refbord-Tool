@@ -8,6 +8,7 @@ except ImportError:  # pragma: no cover - for newer host apps
 
 from refboard_core.constants import PLUGIN_NAME
 from ui.canvas_view import RefCanvasView
+from ui.status_overlay import RefBoardLoadingOverlay, RefBoardSaveToast
 from ui.styles import PANEL_STYLE
 
 
@@ -76,6 +77,8 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.canvas = RefCanvasView(self)
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas, 1)
+        self.loading_overlay = RefBoardLoadingOverlay(self)
+        self.save_toast = RefBoardSaveToast(self)
 
     def _toolbar_button(self, text, tooltip):
         button = QtWidgets.QToolButton(self.toolbar)
@@ -127,3 +130,27 @@ class RefBoardPanel(QtWidgets.QWidget):
         else:
             self.pin_button.setIcon(QtGui.QIcon())
             self.pin_button.setText("Pinned" if pinned else "Pin")
+
+    def resizeEvent(self, event):
+        super(RefBoardPanel, self).resizeEvent(event)
+        if hasattr(self, "loading_overlay") and self.loading_overlay.isVisible():
+            self.loading_overlay.show_centered()
+        if hasattr(self, "save_toast") and self.save_toast.isVisible():
+            self.save_toast.show_bottom_left(self.save_toast.body_label.text(), 2200)
+
+    def contextMenuEvent(self, event):
+        menu = QtWidgets.QMenu(self)
+        toggle_loading_action = menu.addAction("Test Loading Overlay")
+        hide_loading_action = menu.addAction("Hide Loading Overlay")
+        menu.addSeparator()
+        test_save_toast_action = menu.addAction("Test Save Toast")
+        hide_save_toast_action = menu.addAction("Hide Save Toast")
+        action = menu.exec_(event.globalPos())
+        if action == toggle_loading_action:
+            self.loading_overlay.show_centered()
+        elif action == hide_loading_action:
+            self.loading_overlay.hide()
+        elif action == test_save_toast_action:
+            self.save_toast.show_bottom_left("RefBoard saved")
+        elif action == hide_save_toast_action:
+            self.save_toast.hide()
