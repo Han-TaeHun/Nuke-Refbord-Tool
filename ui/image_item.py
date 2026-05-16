@@ -17,6 +17,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
 
     def __init__(self, pixmap, source_path="", image_id=None, parent=None):
         super(RefImageItem, self).__init__(pixmap, parent)
+        self.refboard_item_type = "image"
         self.source_path = source_path
         self.image_id = image_id
         self._transform_mode = None

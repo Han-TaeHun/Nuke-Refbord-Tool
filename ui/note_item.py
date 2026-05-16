@@ -21,6 +21,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
 
     def __init__(self, text="Text", note_id=None, parent=None):
         super(RefNoteItem, self).__init__(text, parent)
+        self.refboard_item_type = "note"
         self.note_id = note_id
         self._editing = False
         self._scaling = False
@@ -140,12 +141,17 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self.update()
 
     def paint(self, painter, option, widget=None):
-        if self.isSelected() or self.is_editing() or not self.toPlainText():
+        if self.toPlainText() or self.isSelected() or self.is_editing():
             painter.save()
             rect = self.text_bounding_rect()
-            pen_color = QtGui.QColor("#4c9aff") if self.isSelected() or self.is_editing() else QtGui.QColor("#5a5d66")
+            if self.isSelected() or self.is_editing():
+                pen_color = QtGui.QColor("#4c9aff")
+                fill_color = QtGui.QColor(32, 33, 36, 200)
+            else:
+                pen_color = QtGui.QColor("#4a4d56")
+                fill_color = QtGui.QColor(20, 21, 24, 145)
             painter.setPen(QtGui.QPen(pen_color, 1.5))
-            painter.setBrush(QtGui.QColor(32, 33, 36, 180))
+            painter.setBrush(fill_color)
             painter.drawRect(rect)
             if self.isSelected():
                 painter.setBrush(QtGui.QColor("#202124"))
@@ -196,7 +202,13 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         if cursor.hasSelection() or self.is_editing():
             return cursor.charFormat()
 
-        char_format = QtGui.QTextCharFormat()
+        if self.document().characterCount() > 1:
+            probe = QtGui.QTextCursor(self.document())
+            probe.movePosition(QtGui.QTextCursor.Start)
+            probe.movePosition(QtGui.QTextCursor.NextCharacter, QtGui.QTextCursor.KeepAnchor)
+            char_format = probe.charFormat()
+        else:
+            char_format = QtGui.QTextCharFormat()
         char_format.setFont(self.font())
         char_format.setForeground(QtGui.QBrush(self.defaultTextColor()))
         return char_format
@@ -232,18 +244,41 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         item = cls(text=model.text, note_id=model.id)
         item.setPos(model.x, model.y)
         item.setZValue(model.z_order)
-        style = model.style or {}
-        item.apply_text_format(
-            bold=style.get("bold"),
-            italic=style.get("italic"),
-            underline=style.get("underline"),
-            strike_out=style.get("strike_out"),
-            point_size=style.get("font_size"),
-            font_family=style.get("font_family"),
-            text_color=style.get("text_color"),
-            background_color=style.get("background_color"),
-        )
+        item._apply_model_style(model.style or {})
+        item._configure_text_layout()
+        item._update_transform_origin()
+        item.update()
         return item
+
+    def _apply_model_style(self, style):
+        font = QtGui.QFont()
+        if style.get("font_family"):
+            font.setFamily(style.get("font_family"))
+        font.setPointSize(int(style.get("font_size", 18) or 18))
+        font.setBold(bool(style.get("bold")))
+        font.setItalic(bool(style.get("italic")))
+        font.setUnderline(bool(style.get("underline")))
+        font.setStrikeOut(bool(style.get("strike_out")))
+        self.setFont(font)
+        self.document().setDefaultFont(font)
+
+        text_color = QtGui.QColor(style.get("text_color") or "#f2f2f2")
+        background_color = QtGui.QColor(style.get("background_color") or "#202124")
+        self.setDefaultTextColor(text_color)
+
+        cursor = QtGui.QTextCursor(self.document())
+        cursor.select(QtGui.QTextCursor.Document)
+        char_format = QtGui.QTextCharFormat()
+        char_format.setFont(font)
+        char_format.setForeground(QtGui.QBrush(text_color))
+        char_format.setBackground(QtGui.QBrush(background_color))
+        cursor.setCharFormat(char_format)
+
+        live_cursor = self.textCursor()
+        live_cursor.select(QtGui.QTextCursor.Document)
+        live_cursor.setCharFormat(char_format)
+        self.setTextCursor(live_cursor)
+        self.document().adjustSize()
 
     def _begin_scale(self, item_pos):
         self._scaling = True

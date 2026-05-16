@@ -12,6 +12,7 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
 
     def __init__(self, backdrop_name, label, parent=None):
         super(RefNodeMarkItem, self).__init__(parent)
+        self.refboard_item_type = "nodemark"
         self.backdrop_name = backdrop_name
         self.label = label
         self._pressed = False

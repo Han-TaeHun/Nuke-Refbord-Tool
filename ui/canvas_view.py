@@ -74,13 +74,13 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.viewport().update()
 
     def image_items(self):
-        return [item for item in self.scene().items() if isinstance(item, RefImageItem)]
+        return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "image"]
 
     def note_items(self):
-        return [item for item in self.scene().items() if isinstance(item, RefNoteItem)]
+        return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "note"]
 
     def nodemark_items(self):
-        return [item for item in self.scene().items() if isinstance(item, RefNodeMarkItem)]
+        return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "nodemark"]
 
     def add_note(self, scene_pos=None, text="Text"):
         if scene_pos is None:
@@ -132,6 +132,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def load_board(self, board_model, image_models, note_models=None, nodemark_models=None):
         self.clear_board()
+        max_image_z = 0
         for model in image_models or []:
             if not model.file or not os.path.exists(model.file):
                 continue
@@ -140,10 +141,17 @@ class RefCanvasView(QtWidgets.QGraphicsView):
                 continue
             item = RefImageItem.from_model(model, pixmap)
             self.scene().addItem(item)
+            max_image_z = max(max_image_z, int(item.zValue()))
         for model in note_models or []:
-            self.scene().addItem(RefNoteItem.from_model(model))
+            item = RefNoteItem.from_model(model)
+            item.setZValue(max(max_image_z + 1, item.zValue()))
+            self.scene().addItem(item)
+            max_image_z = max(max_image_z, int(item.zValue()))
         for model in nodemark_models or []:
-            self.scene().addItem(RefNodeMarkItem.from_model(model))
+            item = RefNodeMarkItem.from_model(model)
+            item.setZValue(max(max_image_z + 1, item.zValue()))
+            self.scene().addItem(item)
+            max_image_z = max(max_image_z, int(item.zValue()))
 
         self._restore_board_view(board_model)
         self.boardChanged.emit()
@@ -151,9 +159,11 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def current_note_item(self):
         focus_item = self.scene().focusItem()
-        if isinstance(focus_item, RefNoteItem):
+        if getattr(focus_item, "refboard_item_type", "") == "note":
             return focus_item
-        selected_notes = [item for item in self.scene().selectedItems() if isinstance(item, RefNoteItem)]
+        selected_notes = [
+            item for item in self.scene().selectedItems() if getattr(item, "refboard_item_type", "") == "note"
+        ]
         return selected_notes[0] if selected_notes else None
 
     def apply_text_format(
@@ -586,18 +596,18 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         )
 
     def _selected_image_items(self):
-        return [item for item in self.scene().selectedItems() if isinstance(item, RefImageItem)]
+        return [item for item in self.scene().selectedItems() if getattr(item, "refboard_item_type", "") == "image"]
 
     def _selected_board_items(self):
         return [
             item
             for item in self.scene().selectedItems()
-            if isinstance(item, (RefImageItem, RefNoteItem, RefNodeMarkItem))
+            if getattr(item, "refboard_item_type", "") in ("image", "note", "nodemark")
         ]
 
     def _text_item_is_editing(self):
         focus_item = self.scene().focusItem()
-        return isinstance(focus_item, RefNoteItem) and focus_item.is_editing()
+        return getattr(focus_item, "refboard_item_type", "") == "note" and focus_item.is_editing()
 
     def frame_selected_or_all_images(self):
         selected_items = self._selected_board_items()
