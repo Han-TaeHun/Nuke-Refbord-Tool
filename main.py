@@ -54,7 +54,7 @@ def show_panel():
 
     _floating_panel = RefBoardPanel()
     _floating_panel.setWindowFlags(_floating_panel.windowFlags() | QtCore.Qt.Window)
-    _floating_panel.resize(520, 360)
+    _floating_panel.resize(1280, 720)
     _floating_panel.show()
     _floating_panel.raise_()
     _floating_panel.activateWindow()
