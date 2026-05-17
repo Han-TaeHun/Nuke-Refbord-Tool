@@ -60,10 +60,6 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.import_board_button = self._toolbar_button("Import Canvas", "Import existing .refboard")
         self.save_board_button = self._toolbar_button("Save Canvas", "Save board")
         self.save_as_board_button = self._toolbar_button("Save As", "Save board as...")
-        self.auto_load_board_button = self._toolbar_button(
-            "Auto Load Canvas",
-            "Automatically load a board canvas for the current script",
-        )
         self.settings_button = self._toolbar_button("Settings", "RefBoard Settings")
         self.board_identifier_label = QtWidgets.QLabel(self.toolbar)
         self.board_identifier_label.setObjectName("RefBoardBoardIdentifierLabel")
@@ -84,7 +80,6 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._set_toolbar_button_icon(self.import_board_button, "icon_ImportBoard.svg")
         self._set_toolbar_button_icon(self.save_board_button, "icon_Save.svg")
         self._set_toolbar_button_icon(self.save_as_board_button, "icon_SaveAs.svg")
-        self._set_toolbar_button_icon(self.auto_load_board_button, "icon_autoload.svg")
         self._set_toolbar_button_icon(self.settings_button, "icon_Setting.svg")
 
         toolbar_layout.addWidget(self.new_board_button, 0, QtCore.Qt.AlignVCenter)
@@ -93,7 +88,6 @@ class RefBoardPanel(QtWidgets.QWidget):
         toolbar_layout.addWidget(self.save_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.save_as_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self._toolbar_separator(), 0, QtCore.Qt.AlignVCenter)
-        toolbar_layout.addWidget(self.auto_load_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.settings_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addStretch(1)
         toolbar_layout.addWidget(self.board_identifier_label, 0, QtCore.Qt.AlignVCenter)
@@ -109,8 +103,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.import_board_button.clicked.connect(self._import_board)
         self.save_board_button.clicked.connect(self._save_board)
         self.save_as_board_button.clicked.connect(self._save_board_as)
-        self.switch_board_button.clicked.connect(lambda: self._show_placeholder_message("Switch Canvas"))
-        self.auto_load_board_button.clicked.connect(lambda: self._show_placeholder_message("Auto Load Canvas"))
+        self.switch_board_button.clicked.connect(self._switch_board)
         self.settings_button.clicked.connect(self._open_settings_dialog)
 
     def _toolbar_button(self, text, tooltip):
@@ -202,6 +195,41 @@ class RefBoardPanel(QtWidgets.QWidget):
         if not file_path:
             return
         self._load_board_from_path(file_path)
+
+    def _switch_board(self):
+        scene_path = self._current_nuke_scene_path()
+        if not scene_path:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Please Save Scene",
+                "Please save the current Nuke scene first.",
+            )
+            return
+        board_choices = self._scene_board_choices()
+        if not board_choices:
+            QtWidgets.QMessageBox.information(
+                self,
+                "No RefBoards Found",
+                "No .refboard files were found next to the current scene.",
+            )
+            return
+
+        labels = [choice[0] for choice in board_choices]
+        selected_label, accepted = QtWidgets.QInputDialog.getItem(
+            self,
+            "Switch Board",
+            "Choose board:",
+            labels,
+            0,
+            False,
+        )
+        if not accepted or not selected_label:
+            return
+
+        for label, file_path in board_choices:
+            if label == selected_label:
+                self._load_board_from_path(file_path)
+                return
 
     def _save_board(self):
         if not self._current_board_path:
@@ -442,6 +470,36 @@ class RefBoardPanel(QtWidgets.QWidget):
         if not scene_path:
             return None
         return os.path.splitext(os.path.basename(scene_path))[0]
+
+    def _scene_board_choices(self):
+        scene_path = self._current_nuke_scene_path()
+        if not scene_path:
+            return []
+        scene_dir = os.path.dirname(scene_path)
+        board_paths = []
+        for name in sorted(os.listdir(scene_dir)):
+            if not name.lower().endswith(FILE_EXTENSION):
+                continue
+            board_paths.append(os.path.join(scene_dir, name))
+
+        used_labels = set()
+        choices = []
+        for board_path in board_paths:
+            label = self._switch_board_label_for_path(board_path)
+            unique_label = label
+            suffix = 2
+            while unique_label in used_labels:
+                unique_label = "{0} ({1})".format(label, suffix)
+                suffix += 1
+            used_labels.add(unique_label)
+            choices.append((unique_label, board_path))
+        return choices
+
+    def _switch_board_label_for_path(self, file_path):
+        identifier = self._board_identifier_for_path(file_path)
+        if identifier:
+            return identifier
+        return os.path.basename(file_path)
 
     def _board_identifier_for_path(self, file_path):
         if not file_path:
