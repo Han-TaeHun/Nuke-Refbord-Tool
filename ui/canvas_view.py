@@ -9,9 +9,15 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtSvg, QtWidgets
 
+try:
+    import nuke
+except ImportError:  # pragma: no cover - allows local UI testing outside Nuke
+    nuke = None
+
 from refboard_core.file_manager import FileManager
 from refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
 from refboard_core.nodemark import list_nodemark_backdrops
+from ui.framejump_item import RefFrameJumpItem
 from ui.image_item import RefImageItem
 from ui.nodemark_dialog import AddNodeMarkDialog
 from ui.nodemark_item import RefNodeMarkItem
@@ -88,6 +94,9 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def nodemark_items(self):
         return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "nodemark"]
 
+    def framejump_items(self):
+        return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "framejump"]
+
     def add_note(self, scene_pos=None, text="Text"):
         if scene_pos is None:
             scene_pos = self.mapToScene(self.viewport().rect().center())
@@ -111,6 +120,16 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._undo_stack.push(AddBoardItemCommand(self, item, "Add NodeMark"))
         return item
 
+    def add_framejump_link(self, frame, label, scene_pos=None):
+        if scene_pos is None:
+            scene_pos = self.mapToScene(self.viewport().rect().center())
+        item = RefFrameJumpItem(frame, label)
+        self._wire_item_callbacks(item)
+        item.setPos(scene_pos)
+        item.setZValue(self._next_z_value())
+        self._undo_stack.push(AddBoardItemCommand(self, item, "Add Frame Jump"))
+        return item
+
     def board_model(self):
         center = self.mapToScene(self.viewport().rect().center())
         transform = self.transform()
@@ -132,7 +151,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def nodemark_models(self):
         return [item.to_model() for item in self.nodemark_items()]
 
-    def load_board(self, board_model, image_models, note_models=None, nodemark_models=None):
+    def framejump_models(self):
+        return [item.to_model() for item in self.framejump_items()]
+
+    def load_board(self, board_model, image_models, note_models=None, nodemark_models=None, framejump_models=None):
         self.clear_board()
         max_image_z = 0
         self._suspend_undo_tracking = True
@@ -155,6 +177,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             max_image_z = max(max_image_z, int(item.zValue()))
         for model in nodemark_models or []:
             item = RefNodeMarkItem.from_model(model)
+            self._wire_item_callbacks(item)
+            item.setZValue(max(max_image_z + 1, item.zValue()))
+            self.scene().addItem(item)
+            max_image_z = max(max_image_z, int(item.zValue()))
+        for model in framejump_models or []:
+            item = RefFrameJumpItem.from_model(model)
             self._wire_item_callbacks(item)
             item.setZValue(max(max_image_z + 1, item.zValue()))
             self.scene().addItem(item)
@@ -313,6 +341,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         menu = QtWidgets.QMenu(self)
         new_text_action = menu.addAction("New Text")
         add_nodemark_action = menu.addAction("Add NodeMark")
+        add_framejump_action = menu.addAction("Add Current Frame Jump")
         menu.addSeparator()
         debug_menu = menu.addMenu("Dev Debug Test")
         test_loading_action = debug_menu.addAction("Test Loading Overlay")
@@ -329,6 +358,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.add_note(self.mapToScene(event.pos()))
         elif action == add_nodemark_action:
             self._prompt_add_nodemark(self.mapToScene(event.pos()))
+        elif action == add_framejump_action:
+            self._add_current_frame_jump(self.mapToScene(event.pos()))
         elif action == test_loading_action:
             panel = self.window()
             if hasattr(panel, "loading_overlay"):
@@ -524,7 +555,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def drawForeground(self, painter, rect):
         super(RefCanvasView, self).drawForeground(painter, rect)
-        if self.image_items() or self.note_items() or self.nodemark_items():
+        if self.image_items() or self.note_items() or self.nodemark_items() or self.framejump_items():
             return
         painter.save()
         painter.resetTransform()
@@ -598,7 +629,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         )
 
     def _next_z_value(self):
-        values = [item.zValue() for item in self.image_items() + self.note_items() + self.nodemark_items()]
+        values = [
+            item.zValue()
+            for item in self.image_items() + self.note_items() + self.nodemark_items() + self.framejump_items()
+        ]
         return (max(values) + 1) if values else 1
 
     def _wire_note_item(self, item):
@@ -779,7 +813,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         return [
             item
             for item in self.scene().selectedItems()
-            if getattr(item, "refboard_item_type", "") in ("image", "note", "nodemark")
+            if getattr(item, "refboard_item_type", "") in ("image", "note", "nodemark", "framejump")
         ]
 
     def _text_item_is_editing(self):
@@ -788,10 +822,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def frame_selected_or_all_images(self):
         selected_items = self._selected_board_items()
-        return self._frame_items(selected_items or (self.image_items() + self.note_items() + self.nodemark_items()))
+        return self._frame_items(
+            selected_items or (self.image_items() + self.note_items() + self.nodemark_items() + self.framejump_items())
+        )
 
     def frame_all_images(self):
-        return self._frame_items(self.image_items() + self.note_items() + self.nodemark_items())
+        return self._frame_items(self.image_items() + self.note_items() + self.nodemark_items() + self.framejump_items())
 
     def _frame_items(self, items):
         if not items:
@@ -945,3 +981,22 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         custom_label = dialog.display_label()
         link_label = custom_label or selected_item["label"]
         self.add_nodemark_link(selected_item["name"], link_label, scene_pos)
+
+    def _add_current_frame_jump(self, scene_pos):
+        if nuke is None:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Nuke Unavailable",
+                "Current-frame jump links can only be created inside Nuke.",
+            )
+            return
+        try:
+            frame = int(nuke.frame())
+        except Exception:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Frame Unavailable",
+                "The current viewer frame could not be read.",
+            )
+            return
+        self.add_framejump_link(frame, "Frame {0}".format(frame), scene_pos)

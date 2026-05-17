@@ -196,6 +196,7 @@ class RefBoardPanel(QtWidgets.QWidget):
                 self.canvas.image_models(),
                 self.canvas.note_models(),
                 self.canvas.nodemark_models(),
+                self.canvas.framejump_models(),
             )
         except Exception as exc:
             self.save_toast.show_error_bottom_left("RefBoard save failed")
@@ -224,9 +225,11 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.loading_overlay.show_centered()
         QtWidgets.QApplication.processEvents()
         try:
-            board_model, image_models, note_models, nodemark_models = self._serializer.load(file_path, extract_dir)
+            board_model, image_models, note_models, nodemark_models, framejump_models = self._serializer.load(
+                file_path, extract_dir
+            )
             self._suspend_dirty_tracking = True
-            self.canvas.load_board(board_model, image_models, note_models, nodemark_models)
+            self.canvas.load_board(board_model, image_models, note_models, nodemark_models, framejump_models)
             self._suspend_dirty_tracking = False
             self._current_board_path = file_path
             self._set_dirty(False)

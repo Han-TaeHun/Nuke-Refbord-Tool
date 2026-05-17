@@ -6,6 +6,7 @@ import tempfile
 import zipfile
 
 from models.board_model import BoardModel
+from models.framejump_model import FrameJumpModel
 from models.image_model import ImageModel
 from models.nodemark_model import NodeMarkModel
 from models.note_model import NoteModel
@@ -15,7 +16,15 @@ from refboard_core.constants import ASSETS_DIRNAME, FORMAT_VERSION, MANIFEST_NAM
 class RefBoardSerializer:
     """Read and write .refboard files as ZIP packages with a JSON manifest."""
 
-    def save(self, file_path, board_model, image_models, note_models=None, nodemark_models=None):
+    def save(
+        self,
+        file_path,
+        board_model,
+        image_models,
+        note_models=None,
+        nodemark_models=None,
+        framejump_models=None,
+    ):
         temp_dir = tempfile.mkdtemp(prefix="nukerefboard_save_")
         try:
             assets_dir = os.path.join(temp_dir, ASSETS_DIRNAME)
@@ -43,6 +52,9 @@ class RefBoardSerializer:
                 manifest_items.append(model.to_dict())
 
             for model in nodemark_models or []:
+                manifest_items.append(model.to_dict())
+
+            for model in framejump_models or []:
                 manifest_items.append(model.to_dict())
 
             manifest = {
@@ -77,6 +89,7 @@ class RefBoardSerializer:
         image_items = []
         note_items = []
         nodemark_items = []
+        framejump_items = []
         for item_data in manifest.get("items", []):
             item_type = item_data.get("type")
             if item_type == "image":
@@ -87,4 +100,6 @@ class RefBoardSerializer:
                 note_items.append(NoteModel.from_dict(item_data))
             elif item_type == "nodemark":
                 nodemark_items.append(NodeMarkModel.from_dict(item_data))
-        return board, image_items, note_items, nodemark_items
+            elif item_type == "framejump":
+                framejump_items.append(FrameJumpModel.from_dict(item_data))
+        return board, image_items, note_items, nodemark_items, framejump_items
