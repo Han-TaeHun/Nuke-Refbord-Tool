@@ -569,7 +569,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         identifier = self._board_identifier_for_path(file_path)
         if identifier:
             return identifier
-        return os.path.basename(file_path)
+        return os.path.splitext(os.path.basename(file_path))[0]
 
     def _board_identifier_for_path(self, file_path):
         if not file_path:
