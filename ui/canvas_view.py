@@ -279,7 +279,11 @@ class RefCanvasView(QtWidgets.QGraphicsView):
                 event.accept()
                 return
         if event.matches(QtGui.QKeySequence.Paste):
-            if self.paste_images_from_clipboard():
+            if self.paste_from_clipboard():
+                event.accept()
+                return
+        if event.matches(QtGui.QKeySequence.Copy):
+            if self.copy_selected_content_to_clipboard():
                 event.accept()
                 return
         if event.key() == QtCore.Qt.Key_F:
@@ -341,18 +345,34 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         menu = QtWidgets.QMenu(self)
         new_text_action = menu.addAction("New Text")
         add_nodemark_action = menu.addAction("Add NodeMark")
-        add_framejump_action = menu.addAction("Add Current Frame Jump")
+        add_framejump_action = menu.addAction("Add Current Frame")
         menu.addSeparator()
-        debug_menu = menu.addMenu("Dev Debug Test")
-        test_loading_action = debug_menu.addAction("Test Loading Overlay")
-        hide_loading_action = debug_menu.addAction("Hide Loading Overlay")
-        debug_menu.addSeparator()
-        test_save_toast_action = debug_menu.addAction("Test Save Toast")
-        test_save_error_toast_action = debug_menu.addAction("Test Save Failed Toast")
-        hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
+        copy_action = menu.addAction("Copy")
+        paste_action = menu.addAction("Paste")
+        undo_action = menu.addAction("Undo")
         menu.addSeparator()
-        placeholder = menu.addAction("RefBoard menu placeholder")
-        placeholder.setEnabled(False)
+        settings_action = menu.addAction("Settings")
+
+        copy_action.setEnabled(self._can_copy_selected_content())
+        paste_action.setEnabled(self._can_paste_from_clipboard())
+        undo_action.setEnabled(self._undo_stack.canUndo())
+
+        debug_menu = None
+        test_loading_action = None
+        hide_loading_action = None
+        test_save_toast_action = None
+        test_save_error_toast_action = None
+        hide_save_toast_action = None
+        if self._debug_mode_enabled():
+            menu.addSeparator()
+            debug_menu = menu.addMenu("Dev Debug Test")
+            test_loading_action = debug_menu.addAction("Test Loading Overlay")
+            hide_loading_action = debug_menu.addAction("Hide Loading Overlay")
+            debug_menu.addSeparator()
+            test_save_toast_action = debug_menu.addAction("Test Save Toast")
+            test_save_error_toast_action = debug_menu.addAction("Test Save Failed Toast")
+            hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
+
         action = menu.exec_(event.globalPos())
         if action == new_text_action:
             self.add_note(self.mapToScene(event.pos()))
@@ -360,6 +380,16 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self._prompt_add_nodemark(self.mapToScene(event.pos()))
         elif action == add_framejump_action:
             self._add_current_frame_jump(self.mapToScene(event.pos()))
+        elif action == copy_action:
+            self.copy_selected_content_to_clipboard()
+        elif action == paste_action:
+            self.paste_from_clipboard()
+        elif action == undo_action:
+            self.undo_last_action()
+        elif action == settings_action:
+            panel = self.window()
+            if hasattr(panel, "open_settings_dialog"):
+                panel.open_settings_dialog()
         elif action == test_loading_action:
             panel = self.window()
             if hasattr(panel, "loading_overlay"):
@@ -941,6 +971,65 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         for index, path in enumerate(paths):
             self.add_image(path, base_pos + QtCore.QPointF(index * 32, index * 32))
         return True
+
+    def paste_from_clipboard(self):
+        if self.paste_images_from_clipboard():
+            return True
+        clipboard = QtWidgets.QApplication.clipboard()
+        text = (clipboard.text() or "").strip()
+        if not text:
+            return False
+        self.add_note(text=text)
+        return True
+
+    def copy_selected_content_to_clipboard(self):
+        selected_items = self._selected_board_items()
+        if not selected_items:
+            return False
+
+        image_items = [item for item in selected_items if getattr(item, "refboard_item_type", "") == "image"]
+        if image_items:
+            mime = QtCore.QMimeData()
+            urls = []
+            text_lines = []
+            for item in image_items:
+                source_path = getattr(item, "source_path", "")
+                if not source_path:
+                    continue
+                urls.append(QtCore.QUrl.fromLocalFile(source_path))
+                text_lines.append(source_path)
+            if not urls:
+                return False
+            mime.setUrls(urls)
+            mime.setText("\n".join(text_lines))
+            QtWidgets.QApplication.clipboard().setMimeData(mime)
+            return True
+
+        text_lines = []
+        for item in selected_items:
+            item_type = getattr(item, "refboard_item_type", "")
+            if item_type in ("note", "nodemark", "framejump"):
+                text_lines.append(item.toPlainText())
+        if not text_lines:
+            return False
+        QtWidgets.QApplication.clipboard().setText("\n".join(text_lines))
+        return True
+
+    def _can_copy_selected_content(self):
+        return bool(self._selected_board_items())
+
+    def _can_paste_from_clipboard(self):
+        clipboard = QtWidgets.QApplication.clipboard()
+        mime = clipboard.mimeData()
+        if self._image_paths_from_mime(mime, include_image_data=True):
+            return True
+        return bool((clipboard.text() or "").strip())
+
+    def _debug_mode_enabled(self):
+        panel = self.window()
+        if hasattr(panel, "debug_mode_enabled"):
+            return bool(panel.debug_mode_enabled())
+        return False
 
     def delete_selected_items(self):
         items = self._selected_board_items()

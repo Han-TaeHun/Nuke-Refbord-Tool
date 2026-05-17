@@ -145,6 +145,14 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._settings_dialog.raise_()
         self._settings_dialog.activateWindow()
 
+    def open_settings_dialog(self):
+        self._open_settings_dialog()
+
+    def debug_mode_enabled(self):
+        if self._settings_dialog is None:
+            return False
+        return self._settings_dialog.debug_mode_enabled()
+
     def _handle_new_board_clicked(self):
         if self._nuke_scene_requires_save():
             QtWidgets.QMessageBox.information(

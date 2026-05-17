@@ -169,6 +169,8 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         layout.addWidget(self._kv_row("Maximum undo steps", self._spin_box(50)))
         layout.addWidget(self._kv_row("Default panel width", self._spin_box(1280, suffix=" px")))
         layout.addWidget(self._kv_row("Default panel height", self._spin_box(720, suffix=" px")))
+        self._debug_mode_checkbox = self._checkbox_only(False)
+        layout.addWidget(self._kv_row("Debug mode", self._debug_mode_checkbox))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
@@ -406,3 +408,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         if not path:
             return
         line_edit.setText(path)
+
+    def debug_mode_enabled(self):
+        checkbox = getattr(self, "_debug_mode_checkbox", None)
+        return bool(checkbox and checkbox.isChecked())
