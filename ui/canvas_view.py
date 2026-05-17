@@ -425,6 +425,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
 
         action = menu.exec_(event.globalPos())
+        if action is None:
+            return
         if action == new_text_action:
             self.add_note(self.mapToScene(event.pos()))
         elif action == add_nodemark_action:
