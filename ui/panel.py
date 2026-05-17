@@ -6,6 +6,11 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
+try:
+    import nuke
+except ImportError:  # pragma: no cover - allows local UI testing outside Nuke
+    nuke = None
+
 from refboard_core.constants import FILE_EXTENSION, PLUGIN_NAME
 from refboard_core.file_manager import FileManager
 from refboard_core.serializer import RefBoardSerializer
@@ -53,6 +58,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.switch_board_button = self._toolbar_button("Switch Canvas", "Switch board")
         self.import_board_button = self._toolbar_button("Import Canvas", "Import existing .refboard")
         self.save_board_button = self._toolbar_button("Save Canvas", "Save board")
+        self.save_as_board_button = self._toolbar_button("Save As", "Save board as...")
         self.auto_load_board_button = self._toolbar_button(
             "Auto Load Canvas",
             "Automatically load a board canvas for the current script",
@@ -70,6 +76,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._set_toolbar_button_icon(self.switch_board_button, "icon_SwitchBoard.svg")
         self._set_toolbar_button_icon(self.import_board_button, "icon_ImportBoard.svg")
         self._set_toolbar_button_icon(self.save_board_button, "icon_Save.svg")
+        self._set_toolbar_button_icon(self.save_as_board_button, "icon_SaveAs.svg")
         self._set_toolbar_button_icon(self.auto_load_board_button, "icon_autoload.svg")
         self._set_toolbar_button_icon(self.settings_button, "icon_Setting.svg")
 
@@ -77,6 +84,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         toolbar_layout.addWidget(self.import_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.switch_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.save_board_button, 0, QtCore.Qt.AlignVCenter)
+        toolbar_layout.addWidget(self.save_as_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self._toolbar_separator(), 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.auto_load_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.settings_button, 0, QtCore.Qt.AlignVCenter)
@@ -89,9 +97,10 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.loading_overlay = RefBoardLoadingOverlay(self)
         self.save_toast = RefBoardSaveToast(self)
         self.canvas.boardChanged.connect(self._on_board_changed)
-        self.new_board_button.clicked.connect(self._new_board)
+        self.new_board_button.clicked.connect(self._handle_new_board_clicked)
         self.import_board_button.clicked.connect(self._import_board)
         self.save_board_button.clicked.connect(self._save_board)
+        self.save_as_board_button.clicked.connect(self._save_board_as)
         self.switch_board_button.clicked.connect(lambda: self._show_placeholder_message("Switch Canvas"))
         self.auto_load_board_button.clicked.connect(lambda: self._show_placeholder_message("Auto Load Canvas"))
         self.settings_button.clicked.connect(self._open_settings_dialog)
@@ -135,6 +144,16 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._settings_dialog.raise_()
         self._settings_dialog.activateWindow()
 
+    def _handle_new_board_clicked(self):
+        if self._nuke_scene_requires_save():
+            QtWidgets.QMessageBox.information(
+                self,
+                "Please Save Scene",
+                "Please save the current Nuke scene first.",
+            )
+            return
+        self._new_board()
+
     def _new_board(self):
         self._suspend_dirty_tracking = True
         self.canvas.clear_board()
@@ -154,7 +173,20 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._load_board_from_path(file_path)
 
     def _save_board(self):
-        file_path = self._current_board_path or self._prompt_save_path()
+        if not self._current_board_path:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Please Create Board",
+                "Please create a new board first.",
+            )
+            return False
+        return self._save_board_to_path(self._current_board_path)
+
+    def _save_board_as(self):
+        file_path = self._prompt_save_path()
+        return self._save_board_to_path(file_path)
+
+    def _save_board_to_path(self, file_path):
         if not file_path:
             return False
         try:
@@ -307,3 +339,17 @@ class RefBoardPanel(QtWidgets.QWidget):
             "Save Failed",
             "RefBoard could not be saved.\n\n{0}".format(message),
         )
+
+    def _nuke_scene_requires_save(self):
+        if nuke is None:
+            return False
+        try:
+            root = nuke.root()
+            if root is None:
+                return False
+            scene_name = root.name() or ""
+            if scene_name == "Root":
+                return True
+            return bool(root.modified())
+        except Exception:
+            return False
