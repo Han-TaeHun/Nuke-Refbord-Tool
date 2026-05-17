@@ -1,5 +1,6 @@
 # 主界面控制器 / Main dockable reference board panel controller.
 import os
+import re
 
 try:
     from PySide2 import QtCore, QtGui, QtWidgets
@@ -152,14 +153,37 @@ class RefBoardPanel(QtWidgets.QWidget):
                 "Please save the current Nuke scene first.",
             )
             return
-        self._new_board()
+        identifier = self._prompt_new_board_identifier()
+        if identifier is None:
+            return
+        board_path = self._build_new_board_path(identifier)
+        if not board_path:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Create Board Failed",
+                "RefBoard could not build a board path from the current scene.",
+            )
+            return
+        if os.path.exists(board_path):
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                "Board Already Exists",
+                "A board with this name already exists.\n\nOverwrite it?",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No,
+            )
+            if reply != QtWidgets.QMessageBox.Yes:
+                return
+        self._new_board(board_path)
 
-    def _new_board(self):
+    def _new_board(self, board_path=None):
         self._suspend_dirty_tracking = True
         self.canvas.clear_board()
         self._suspend_dirty_tracking = False
         self._current_board_path = None
         self._set_dirty(False)
+        if board_path:
+            self._save_board_to_path(board_path)
 
     def _import_board(self):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -219,6 +243,40 @@ class RefBoardPanel(QtWidgets.QWidget):
         if not file_path.lower().endswith(FILE_EXTENSION):
             file_path += FILE_EXTENSION
         return file_path
+
+    def _prompt_new_board_identifier(self):
+        identifier, accepted = QtWidgets.QInputDialog.getText(
+            self,
+            "Create New Board",
+            "Identifier:",
+        )
+        if not accepted:
+            return None
+        identifier = self._sanitize_board_identifier(identifier)
+        if not identifier:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Identifier Required",
+                "Please enter a valid board identifier.",
+            )
+            return None
+        return identifier
+
+    def _sanitize_board_identifier(self, identifier):
+        text = (identifier or "").strip()
+        text = re.sub(r"\s+", "_", text)
+        text = re.sub(r'[<>:"/\\|?*]+', "_", text)
+        text = re.sub(r"_+", "_", text).strip("._")
+        return text
+
+    def _build_new_board_path(self, identifier):
+        scene_path = self._current_nuke_scene_path()
+        if not scene_path:
+            return None
+        scene_dir = os.path.dirname(scene_path)
+        scene_name = os.path.splitext(os.path.basename(scene_path))[0]
+        file_name = "{0}_boardRef_{1}{2}".format(scene_name, identifier, FILE_EXTENSION)
+        return os.path.join(scene_dir, file_name)
 
     def _load_board_from_path(self, file_path):
         extract_dir = self._file_manager.extraction_dir(file_path)
@@ -356,3 +414,17 @@ class RefBoardPanel(QtWidgets.QWidget):
             return bool(root.modified())
         except Exception:
             return False
+
+    def _current_nuke_scene_path(self):
+        if nuke is None:
+            return None
+        try:
+            root = nuke.root()
+            if root is None:
+                return None
+            scene_path = root.name() or ""
+            if scene_path == "Root":
+                return None
+            return scene_path
+        except Exception:
+            return None
