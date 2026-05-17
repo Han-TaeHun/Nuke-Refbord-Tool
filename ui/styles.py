@@ -86,6 +86,11 @@ QToolButton:pressed, QPushButton:pressed {
     background: #4c9aff;
     color: #101114;
 }
+QPushButton:disabled, QToolButton:disabled {
+    background: #232529;
+    border: 1px solid #30333a;
+    color: #7b8088;
+}
 QFontComboBox#RefBoardFontComboBox, QSpinBox#RefBoardFontSizeBox {
     background: #18191c;
     border: 1px solid #3d4047;
@@ -157,9 +162,45 @@ QTableWidget#RefBoardSettingsTable {
     color: #eceef2;
     padding: 4px 6px;
 }
+QSpinBox#RefBoardSettingsSpinBox {
+    padding-right: 20px;
+}
+QLineEdit#RefBoardSettingsLineEdit:disabled,
+QComboBox#RefBoardSettingsCombo:disabled,
+QSpinBox#RefBoardSettingsSpinBox:disabled,
+QTableWidget#RefBoardSettingsTable:disabled {
+    background: #1b1d20;
+    border: 1px solid #30333a;
+    color: #7b8088;
+}
 QComboBox#RefBoardSettingsCombo::drop-down {
     border: 0;
     width: 20px;
+}
+QSpinBox#RefBoardSettingsSpinBox::up-button,
+QSpinBox#RefBoardSettingsSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 18px;
+    background: #2f3237;
+    border-left: 1px solid #454a53;
+}
+QSpinBox#RefBoardSettingsSpinBox::up-button {
+    subcontrol-position: top right;
+    border-top-right-radius: 4px;
+}
+QSpinBox#RefBoardSettingsSpinBox::down-button {
+    subcontrol-position: bottom right;
+    border-bottom-right-radius: 4px;
+    border-top: 1px solid #454a53;
+}
+QSpinBox#RefBoardSettingsSpinBox::up-button:hover,
+QSpinBox#RefBoardSettingsSpinBox::down-button:hover {
+    background: #3a3d45;
+}
+QSpinBox#RefBoardSettingsSpinBox::up-arrow,
+QSpinBox#RefBoardSettingsSpinBox::down-arrow {
+    width: 8px;
+    height: 8px;
 }
 QTableWidget#RefBoardSettingsTable {
     gridline-color: #3d4047;

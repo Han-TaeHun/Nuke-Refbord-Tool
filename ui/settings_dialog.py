@@ -1,8 +1,8 @@
 # 设置界面对话框 / Preferences-style settings dialog.
 try:
-    from PySide2 import QtCore, QtWidgets
+    from PySide2 import QtCore, QtGui, QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps
-    from PySide6 import QtCore, QtWidgets
+    from PySide6 import QtCore, QtGui, QtWidgets
 
 from ui.styles import PANEL_STYLE
 
@@ -66,6 +66,9 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
 
         footer_layout = QtWidgets.QHBoxLayout()
         footer_layout.setContentsMargins(0, 0, 0, 0)
+        self._reset_button = QtWidgets.QPushButton("Reset", self)
+        self._reset_button.clicked.connect(self._reset_placeholder)
+        footer_layout.addWidget(self._reset_button)
         footer_layout.addStretch(1)
 
         self._save_button = QtWidgets.QPushButton("Save", self)
@@ -81,13 +84,11 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
 
     def _populate_categories(self):
         pages = [
-            ("General", None, self._build_general_page()),
-            ("Canvas", None, self._build_canvas_page()),
             ("Autosave", None, self._build_autosave_page()),
-            ("Paths", None, self._build_paths_page()),
+            ("Paths / Storage", None, self._build_storage_page()),
+            ("Canvas", None, self._build_canvas_page()),
+            ("Text / Notes", None, self._build_text_notes_page()),
             ("NodeMark", None, self._build_nodemark_page()),
-            ("Performance", None, self._build_performance_page()),
-            ("About", None, self._build_about_page()),
         ]
 
         for title, parent_title, widget in pages:
@@ -98,15 +99,6 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
             else:
                 parent_item = self._find_or_create_group(parent_title)
                 parent_item.addChild(item)
-
-        advanced_group = self._find_or_create_group("Advanced")
-        for title, widget in [
-            ("Experimental", self._build_experimental_page()),
-            ("Debug", self._build_debug_page()),
-        ]:
-            item = QtWidgets.QTreeWidgetItem([title])
-            item.setData(0, QtCore.Qt.UserRole, self._stack.addWidget(widget))
-            advanced_group.addChild(item)
 
     def _find_or_create_group(self, title):
         for index in range(self._left_tree.topLevelItemCount()):
@@ -129,111 +121,107 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         self.setWindowTitle("Preferences - {0}".format(current.text(0)))
         self._stack.setCurrentIndex(int(page_index))
 
-    def _build_general_page(self):
+    def _build_autosave_page(self):
         page = self._page_container()
         layout = page.layout()
-        layout.addWidget(self._section_title("Workspace"))
-        layout.addWidget(self._kv_row("Current mode", self._line_edit("Single canvas placeholder")))
-        layout.addWidget(self._kv_row("Theme", self._combo(["Dark", "Studio Gray", "Placeholder"])))
-        layout.addWidget(self._kv_row("Startup behavior", self._combo(["Open last board", "Start empty", "Ask every time"])))
+        self._autosave_enable_checkbox = self._checkbox_only(True)
+        self._autosave_force_spinbox = self._spin_box(10, suffix=" min")
+
+        layout.addWidget(self._kv_row("Enable autosave", self._autosave_enable_checkbox))
+        layout.addWidget(self._kv_row("Autosave interval", self._autosave_force_spinbox))
         layout.addSpacing(10)
-        layout.addWidget(self._section_title("Quick Notes"))
-        layout.addWidget(self._placeholder_box("General settings placeholder area.\nLater we can place board name rules, startup defaults, and UI behavior here."))
+        layout.addWidget(
+            self._placeholder_box(
+                "This page is reserved for autosave behavior only.\n"
+                "The real save timer, idle detection, and forced interval logic can be connected later."
+            )
+        )
+        self._autosave_enable_checkbox.toggled.connect(self._update_autosave_controls_state)
+        self._update_autosave_controls_state(self._autosave_enable_checkbox.isChecked())
+        layout.addStretch(1)
+        return page
+
+    def _build_storage_page(self):
+        page = self._page_container()
+        layout = page.layout()
+        self._custom_cache_checkbox = self._checkbox_only(False)
+        self._cache_path_picker = self._path_picker("Choose cache directory...", "Select Folder")
+        self._clean_cache_checkbox = self._checkbox_only(True)
+
+        layout.addWidget(self._kv_row("Use custom cache directory", self._custom_cache_checkbox))
+        layout.addWidget(self._kv_row("Cache directory", self._cache_path_picker))
+        layout.addWidget(self._kv_row("Clean cache on exit", self._clean_cache_checkbox))
+        layout.addSpacing(10)
+        layout.addWidget(
+            self._placeholder_box(
+                "This page will later manage runtime storage, extracted .refboard assets, "
+                "and any custom temp folder chosen from the settings window."
+            )
+        )
+        self._custom_cache_checkbox.toggled.connect(self._update_cache_path_controls_state)
+        self._update_cache_path_controls_state(self._custom_cache_checkbox.isChecked())
         layout.addStretch(1)
         return page
 
     def _build_canvas_page(self):
         page = self._page_container()
         layout = page.layout()
-        layout.addWidget(self._section_title("Canvas Defaults"))
-        layout.addWidget(self._kv_row("Default zoom step", self._spin_box(15, suffix="%")))
-        layout.addWidget(self._kv_row("Default note size", self._spin_box(18, suffix=" pt")))
         layout.addWidget(self._kv_row("Maximum undo steps", self._spin_box(50)))
+        layout.addWidget(self._kv_row("Default panel width", self._spin_box(1280, suffix=" px")))
+        layout.addWidget(self._kv_row("Default panel height", self._spin_box(720, suffix=" px")))
         layout.addSpacing(10)
-        layout.addWidget(self._section_title("Placeholders"))
-        layout.addWidget(self._placeholder_box("Canvas-related settings placeholder.\nThis is where note defaults, background look, and interaction options can live later."))
+        layout.addWidget(
+            self._placeholder_box(
+                "Canvas settings placeholder.\n"
+                "This page can later control startup canvas behavior, stacking rules, and window defaults."
+            )
+        )
         layout.addStretch(1)
         return page
 
-    def _build_autosave_page(self):
+    def _build_text_notes_page(self):
         page = self._page_container()
         layout = page.layout()
-        layout.addWidget(self._section_title("Autosave"))
-        layout.addWidget(self._kv_row("Enable autosave", self._checkbox("Placeholder toggle", True)))
-        layout.addWidget(self._kv_row("Idle autosave after", self._spin_box(8, suffix=" sec")))
-        layout.addWidget(self._kv_row("Force autosave after", self._spin_box(30, suffix=" sec")))
-        layout.addWidget(self._kv_row("Autosave filename", self._line_edit("board_name.autosave.refboard")))
-        layout.addStretch(1)
-        return page
-
-    def _build_paths_page(self):
-        page = self._page_container()
-        layout = page.layout()
-        layout.addWidget(self._section_title("Runtime Paths"))
-        layout.addWidget(self._kv_row("Temp directory", self._line_edit("F:/R_D/NukeRefBoard/temp")))
-        layout.addWidget(self._kv_row("Imported board cache", self._line_edit("temp/<board_name>")))
+        layout.addWidget(self._kv_row("Default font", self._combo(["Verdana", "Arial", "Microsoft YaHei", "Placeholder"])))
+        layout.addWidget(self._kv_row("Default font size", self._spin_box(18, suffix=" pt")))
+        layout.addWidget(self._kv_row("Default text color", self._color_picker("#f2f2f2")))
+        layout.addWidget(self._kv_row("Default text background", self._color_picker("#202124")))
+        layout.addWidget(self._kv_row("Default transparent background", self._checkbox_only(False)))
+        layout.addWidget(self._kv_row("Auto-enter edit mode for new text", self._checkbox_only(True)))
+        layout.addWidget(self._kv_row("Continue checklist on new line", self._checkbox_only(True)))
         layout.addSpacing(10)
-        layout.addWidget(self._section_title("Path Table Placeholder"))
-        table = QtWidgets.QTableWidget(4, 3, page)
-        table.setObjectName("RefBoardSettingsTable")
-        table.setHorizontalHeaderLabels(["Windows", "macOS", "Linux"])
-        table.verticalHeader().setVisible(False)
-        table.horizontalHeader().setStretchLastSection(True)
-        for row in range(4):
-            for col in range(3):
-                table.setItem(row, col, QtWidgets.QTableWidgetItem("Placeholder"))
-        layout.addWidget(table, 1)
-        buttons = QtWidgets.QHBoxLayout()
-        buttons.addWidget(self._mini_button("+"))
-        buttons.addWidget(self._mini_button("-"))
-        buttons.addStretch(1)
-        layout.addLayout(buttons)
+        layout.addWidget(
+            self._placeholder_box(
+                "Text and note defaults placeholder.\n"
+                "This page is prepared for note style, checklist behavior, and new-text interaction defaults."
+            )
+        )
+        layout.addStretch(1)
         return page
 
     def _build_nodemark_page(self):
         page = self._page_container()
         layout = page.layout()
-        layout.addWidget(self._section_title("NodeMark"))
-        layout.addWidget(self._kv_row("Backdrop prefix", self._line_edit("RefBoardToolsetBackdrop_")))
-        layout.addWidget(self._kv_row("Auto label style", self._combo(["Label slug", "Original label", "Custom later"])))
-        layout.addWidget(self._kv_row("Missing NodeMark behavior", self._combo(["Show warning", "Silent fail", "Try fallback"])))
-        layout.addStretch(1)
-        return page
-
-    def _build_performance_page(self):
-        page = self._page_container()
-        layout = page.layout()
-        layout.addWidget(self._section_title("Performance"))
-        layout.addWidget(self._kv_row("Thumbnail cache", self._checkbox("Use placeholder cache", True)))
-        layout.addWidget(self._kv_row("Image import mode", self._combo(["Balanced", "Fast", "Quality first"])))
-        layout.addWidget(self._kv_row("Large board behavior", self._combo(["Normal", "Lazy load later", "Placeholder"])))
-        layout.addStretch(1)
-        return page
-
-    def _build_about_page(self):
-        page = self._page_container()
-        layout = page.layout()
-        layout.addWidget(self._section_title("About Nuke RefBoard"))
-        layout.addWidget(self._placeholder_box("Preferences dialog placeholder.\nThis page can later show version info, storage format version, and support links."))
-        layout.addStretch(1)
-        return page
-
-    def _build_experimental_page(self):
-        page = self._page_container()
-        layout = page.layout()
-        layout.addWidget(self._section_title("Experimental"))
-        layout.addWidget(self._checkbox("Enable placeholder future feature A", False))
-        layout.addWidget(self._checkbox("Enable placeholder future feature B", False))
-        layout.addStretch(1)
-        return page
-
-    def _build_debug_page(self):
-        page = self._page_container()
-        layout = page.layout()
-        layout.addWidget(self._section_title("Debug"))
-        layout.addWidget(self._checkbox("Show verbose logs placeholder", False))
-        layout.addWidget(self._checkbox("Enable save-failure test hooks placeholder", True))
-        layout.addWidget(self._placeholder_box("Future debug switches and developer-only settings can live here."))
+        layout.addWidget(
+            self._kv_row(
+                "Default NodeMark link style",
+                self._combo(["Hyperlink text", "Pill button"]),
+            )
+        )
+        layout.addWidget(
+            self._kv_row(
+                "Missing backdrop behavior",
+                self._combo(["Show warning", "Do nothing"]),
+            )
+        )
+        layout.addWidget(self._kv_row("Default backdrop color", self._color_picker("#2F4F6F")))
+        layout.addSpacing(10)
+        layout.addWidget(
+            self._placeholder_box(
+                "NodeMark settings placeholder.\n"
+                "This page is ready for jump-link behavior, target fallback rules, and default backdrop appearance."
+            )
+        )
         layout.addStretch(1)
         return page
 
@@ -266,10 +254,55 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         widget.setObjectName("RefBoardSettingsLineEdit")
         return widget
 
+    def _path_picker(self, text, button_text):
+        row = QtWidgets.QWidget(self)
+        layout = QtWidgets.QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        line_edit = self._line_edit(text)
+        browse_button = QtWidgets.QPushButton(button_text, row)
+        browse_button.setObjectName("RefBoardSettingsBrowseButton")
+        browse_button.setFixedHeight(28)
+        browse_button.clicked.connect(lambda: self._pick_directory(line_edit))
+
+        row._path_line_edit = line_edit
+        row._browse_button = browse_button
+
+        layout.addWidget(line_edit, 1)
+        layout.addWidget(browse_button, 0)
+        return row
+
+    def _color_picker(self, color_value):
+        row = QtWidgets.QWidget(self)
+        layout = QtWidgets.QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        swatch = QtWidgets.QPushButton(row)
+        swatch.setObjectName("RefBoardSettingsColorSwatch")
+        swatch.setFixedSize(30, 26)
+        swatch.setCursor(QtCore.Qt.PointingHandCursor)
+
+        line_edit = self._line_edit(color_value)
+        line_edit.hide()
+
+        self._apply_color_swatch(swatch, color_value)
+
+        swatch.clicked.connect(lambda: self._pick_setting_color(line_edit, swatch))
+        line_edit.editingFinished.connect(lambda: self._apply_color_swatch(swatch, line_edit.text().strip()))
+
+        layout.addWidget(swatch, 0)
+        layout.addWidget(line_edit, 0)
+        layout.addStretch(1)
+        return row
+
     def _combo(self, items):
         widget = QtWidgets.QComboBox(self)
         widget.setObjectName("RefBoardSettingsCombo")
         widget.addItems(items)
+        widget.setMinimumWidth(220)
+        widget.setMaximumWidth(280)
         return widget
 
     def _spin_box(self, value, suffix=""):
@@ -277,6 +310,8 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         widget.setObjectName("RefBoardSettingsSpinBox")
         widget.setRange(0, 9999)
         widget.setValue(int(value))
+        widget.setMinimumWidth(110)
+        widget.setMaximumWidth(140)
         if suffix:
             widget.setSuffix(suffix)
         return widget
@@ -286,6 +321,9 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         widget.setChecked(bool(checked))
         widget.setObjectName("RefBoardSettingsCheckBox")
         return widget
+
+    def _checkbox_only(self, checked):
+        return self._checkbox("", checked)
 
     def _placeholder_box(self, text):
         box = QtWidgets.QFrame(self)
@@ -310,3 +348,61 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
             "Apply placeholder",
             self,
         )
+
+    def _reset_placeholder(self):
+        QtWidgets.QToolTip.showText(
+            self.mapToGlobal(QtCore.QPoint(40, self.height() - 44)),
+            "Reset placeholder",
+            self,
+        )
+
+    def _update_autosave_controls_state(self, enabled):
+        for widget in (
+            getattr(self, "_autosave_force_spinbox", None),
+        ):
+            if widget is not None:
+                widget.setEnabled(bool(enabled))
+
+    def _update_cache_path_controls_state(self, enabled):
+        picker = getattr(self, "_cache_path_picker", None)
+        if picker is None:
+            return
+        line_edit = getattr(picker, "_path_line_edit", None)
+        browse_button = getattr(picker, "_browse_button", None)
+        if line_edit is not None:
+            line_edit.setEnabled(bool(enabled))
+        if browse_button is not None:
+            browse_button.setEnabled(bool(enabled))
+
+    def _pick_setting_color(self, line_edit, swatch_button):
+        current = QtGui.QColor(line_edit.text().strip())
+        if not current.isValid():
+            current = QtGui.QColor("#ffffff")
+        color = QtWidgets.QColorDialog.getColor(current, self, "Choose Color")
+        if not color.isValid():
+            return
+        value = color.name().upper()
+        line_edit.setText(value)
+        self._apply_color_swatch(swatch_button, value)
+
+    def _apply_color_swatch(self, swatch_button, color_value):
+        color = QtGui.QColor((color_value or "").strip())
+        if not color.isValid():
+            color = QtGui.QColor("#303238")
+        swatch_button.setStyleSheet(
+            "QPushButton#RefBoardSettingsColorSwatch {{"
+            "background: {0};"
+            "border: 1px solid #3d4047;"
+            "border-radius: 4px;"
+            "}}"
+            "QPushButton#RefBoardSettingsColorSwatch:hover {{"
+            "border: 1px solid #5b6069;"
+            "}}".format(color.name())
+        )
+
+    def _pick_directory(self, line_edit):
+        current = line_edit.text().strip()
+        path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Folder", current or "")
+        if not path:
+            return
+        line_edit.setText(path)
