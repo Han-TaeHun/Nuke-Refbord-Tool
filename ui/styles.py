@@ -29,6 +29,20 @@ QFrame#RefBoardToolbarSeparator {
     margin-left: 6px;
     margin-right: 6px;
 }
+QLabel#RefBoardBoardIdentifierLabel {
+    min-height: 22px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+QLabel#RefBoardBoardIdentifierLabel[hasIdentifier="true"] {
+    color: #f2cb58;
+    font-weight: 700;
+}
+QLabel#RefBoardBoardIdentifierLabel[hasIdentifier="false"] {
+    color: #7f8693;
+    font-weight: 500;
+    font-style: italic;
+}
 QFrame#RefBoardFloatingTextToolbar {
     background: #25272b;
     border: 1px solid #3d4047;

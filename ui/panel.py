@@ -65,6 +65,12 @@ class RefBoardPanel(QtWidgets.QWidget):
             "Automatically load a board canvas for the current script",
         )
         self.settings_button = self._toolbar_button("Settings", "RefBoard Settings")
+        self.board_identifier_label = QtWidgets.QLabel(self.toolbar)
+        self.board_identifier_label.setObjectName("RefBoardBoardIdentifierLabel")
+        self.board_identifier_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.board_identifier_label.setFixedWidth(180)
+        self.board_identifier_label.setText("")
+        self.board_identifier_label.setProperty("hasIdentifier", False)
         self.pin_button = QtWidgets.QToolButton(self.toolbar)
         self.pin_button.setObjectName("RefBoardPinButton")
         self.pin_button.setToolTip("Keep panel on top")
@@ -90,6 +96,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         toolbar_layout.addWidget(self.auto_load_board_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.settings_button, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addStretch(1)
+        toolbar_layout.addWidget(self.board_identifier_label, 0, QtCore.Qt.AlignVCenter)
         toolbar_layout.addWidget(self.pin_button, 0, QtCore.Qt.AlignVCenter)
 
         self.canvas = RefCanvasView(self)
@@ -386,6 +393,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         if self._is_dirty:
             title += " *"
         self.setWindowTitle(title)
+        self._update_board_identifier_display()
 
     def set_max_undo_steps(self, steps):
         return self.canvas.set_max_undo_steps(steps)
@@ -428,3 +436,34 @@ class RefBoardPanel(QtWidgets.QWidget):
             return scene_path
         except Exception:
             return None
+
+    def _current_scene_base_name(self):
+        scene_path = self._current_nuke_scene_path()
+        if not scene_path:
+            return None
+        return os.path.splitext(os.path.basename(scene_path))[0]
+
+    def _board_identifier_for_path(self, file_path):
+        if not file_path:
+            return ""
+        scene_base_name = self._current_scene_base_name()
+        if not scene_base_name:
+            return ""
+        file_name = os.path.basename(file_path)
+        pattern = r"^{0}_boardRef_(.+){1}$".format(
+            re.escape(scene_base_name),
+            re.escape(FILE_EXTENSION),
+        )
+        match = re.match(pattern, file_name, re.IGNORECASE)
+        if not match:
+            return ""
+        return match.group(1)
+
+    def _update_board_identifier_display(self):
+        identifier = self._board_identifier_for_path(self._current_board_path)
+        has_identifier = bool(identifier)
+        self.board_identifier_label.setProperty("hasIdentifier", has_identifier)
+        self.board_identifier_label.setText(identifier if has_identifier else "=No Identifier =")
+        self.board_identifier_label.style().unpolish(self.board_identifier_label)
+        self.board_identifier_label.style().polish(self.board_identifier_label)
+        self.board_identifier_label.update()
