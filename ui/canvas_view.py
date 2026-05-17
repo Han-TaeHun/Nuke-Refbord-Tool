@@ -999,4 +999,4 @@ class RefCanvasView(QtWidgets.QGraphicsView):
                 "The current viewer frame could not be read.",
             )
             return
-        self.add_framejump_link(frame, "Frame {0}".format(frame), scene_pos)
+        self.add_framejump_link(frame, u"→ Frame：{0}".format(frame), scene_pos)

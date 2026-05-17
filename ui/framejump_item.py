@@ -24,6 +24,7 @@ class RefFrameJumpItem(QtWidgets.QGraphicsTextItem):
         self.on_state_changed = None
         self._pressed = False
         self._press_pos = QtCore.QPointF()
+        self._press_scene_pos = QtCore.QPointF()
         self.setPlainText(label)
         self.setDefaultTextColor(QtGui.QColor("#7fc8ff"))
         font = QtGui.QFont()
@@ -44,10 +45,11 @@ class RefFrameJumpItem(QtWidgets.QGraphicsTextItem):
             self._interaction_start_state = self.capture_state()
         self._pressed = True
         self._press_pos = event.pos()
+        self._press_scene_pos = event.scenePos()
         super(RefFrameJumpItem, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        moved = (event.pos() - self._press_pos).manhattanLength() > 6.0
+        moved = (event.scenePos() - self._press_scene_pos).manhattanLength() > 6.0
         super(RefFrameJumpItem, self).mouseReleaseEvent(event)
         if self._pressed and not moved and event.button() == QtCore.Qt.LeftButton:
             self._jump_to_frame()
