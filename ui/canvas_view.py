@@ -557,14 +557,23 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         super(RefCanvasView, self).drawForeground(painter, rect)
         if self.image_items() or self.note_items() or self.nodemark_items() or self.framejump_items():
             return
+        message = self._empty_state_message()
+        if not message:
+            return
         painter.save()
         painter.resetTransform()
         painter.setPen(QtGui.QColor("#8a8d94"))
         font = painter.font()
         font.setPointSize(8)
         painter.setFont(font)
-        painter.drawText(self.viewport().rect(), QtCore.Qt.AlignCenter, u">>> Please drag the image here <<<")
+        painter.drawText(self.viewport().rect(), QtCore.Qt.AlignCenter, message)
         painter.restore()
+
+    def _empty_state_message(self):
+        panel = self.window()
+        if panel is not None and hasattr(panel, "empty_state_message"):
+            return panel.empty_state_message()
+        return u">>> Please drag the image here <<<"
 
 
     def _pick_text_color(self, target):

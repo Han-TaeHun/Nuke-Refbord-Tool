@@ -422,6 +422,7 @@ class RefBoardPanel(QtWidgets.QWidget):
             title += " *"
         self.setWindowTitle(title)
         self._update_board_identifier_display()
+        self.canvas.viewport().update()
 
     def set_max_undo_steps(self, steps):
         return self.canvas.set_max_undo_steps(steps)
@@ -436,6 +437,13 @@ class RefBoardPanel(QtWidgets.QWidget):
             "Save Failed",
             "RefBoard could not be saved.\n\n{0}".format(message),
         )
+
+    def empty_state_message(self):
+        if self._nuke_scene_requires_save():
+            return u"Please save the Nuke scene first"
+        if not self._current_board_path:
+            return u"Please create a board or load / import a board"
+        return u">>>  Please drag the image here  <<<"
 
     def _nuke_scene_requires_save(self):
         if nuke is None:
