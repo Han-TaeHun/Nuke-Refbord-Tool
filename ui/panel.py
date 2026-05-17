@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover - allows local UI testing outside Nuke
 from refboard_core.constants import FILE_EXTENSION, PLUGIN_NAME
 from refboard_core.file_manager import FileManager
 from refboard_core.serializer import RefBoardSerializer
+from session_state import current_settings, update_settings
 from ui.canvas_view import RefCanvasView
 from ui.settings_dialog import RefBoardSettingsDialog
 from ui.status_overlay import RefBoardLoadingOverlay, RefBoardSaveToast
@@ -32,6 +33,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._is_dirty = False
         self._suspend_dirty_tracking = False
         self._current_board_path = None
+        self._settings = current_settings()
         self._icon_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "resources",
@@ -40,7 +42,10 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._serializer = RefBoardSerializer()
         self._file_manager = FileManager()
         self._settings_dialog = None
+        self._autosave_timer = QtCore.QTimer(self)
+        self._autosave_timer.timeout.connect(self._autosave_if_needed)
         self._build_ui()
+        self._apply_runtime_settings(self._settings)
 
     def _build_ui(self):
         self.setStyleSheet(PANEL_STYLE)
@@ -141,6 +146,8 @@ class RefBoardPanel(QtWidgets.QWidget):
     def _open_settings_dialog(self):
         if self._settings_dialog is None:
             self._settings_dialog = RefBoardSettingsDialog(self)
+            self._settings_dialog.settingsApplied.connect(self._apply_settings)
+        self._settings_dialog.load_settings(self._settings)
         self._settings_dialog.show()
         self._settings_dialog.raise_()
         self._settings_dialog.activateWindow()
@@ -149,9 +156,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._open_settings_dialog()
 
     def debug_mode_enabled(self):
-        if self._settings_dialog is None:
-            return False
-        return self._settings_dialog.debug_mode_enabled()
+        return bool(self._settings.get("debug_mode"))
 
     def _handle_new_board_clicked(self):
         if self._nuke_scene_requires_save():
@@ -365,6 +370,7 @@ class RefBoardPanel(QtWidgets.QWidget):
 
     def closeEvent(self, event):
         if not self._is_dirty:
+            self._cleanup_runtime_cache_if_needed()
             super(RefBoardPanel, self).closeEvent(event)
             return
 
@@ -382,12 +388,14 @@ class RefBoardPanel(QtWidgets.QWidget):
         clicked = message_box.clickedButton()
         if clicked == save_button:
             if self._save_board():
+                self._cleanup_runtime_cache_if_needed()
                 super(RefBoardPanel, self).closeEvent(event)
                 event.accept()
             else:
                 event.ignore()
             return
         if clicked == discard_button:
+            self._cleanup_runtime_cache_if_needed()
             super(RefBoardPanel, self).closeEvent(event)
             event.accept()
             return
@@ -397,13 +405,16 @@ class RefBoardPanel(QtWidgets.QWidget):
         event.ignore()
 
     def contextMenuEvent(self, event):
+        if not self.debug_mode_enabled():
+            return
         menu = QtWidgets.QMenu(self)
-        toggle_loading_action = menu.addAction("Test Loading Overlay")
-        hide_loading_action = menu.addAction("Hide Loading Overlay")
-        menu.addSeparator()
-        test_save_toast_action = menu.addAction("Test Save Toast")
-        test_save_error_toast_action = menu.addAction("Test Save Failed Toast")
-        hide_save_toast_action = menu.addAction("Hide Save Toast")
+        debug_menu = menu.addMenu("Dev Debug Test")
+        toggle_loading_action = debug_menu.addAction("Test Loading Overlay")
+        hide_loading_action = debug_menu.addAction("Hide Loading Overlay")
+        debug_menu.addSeparator()
+        test_save_toast_action = debug_menu.addAction("Test Save Toast")
+        test_save_error_toast_action = debug_menu.addAction("Test Save Failed Toast")
+        hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
         action = menu.exec_(event.globalPos())
         if action == toggle_loading_action:
             self.loading_overlay.show_centered()
@@ -452,6 +463,49 @@ class RefBoardPanel(QtWidgets.QWidget):
         if not self._current_board_path:
             return u"Please create a board or load / import a board"
         return u">>>  Please drag the image here  <<<"
+
+    def _apply_settings(self, settings):
+        self._settings = update_settings(settings)
+        self._apply_runtime_settings(self._settings)
+
+    def _apply_runtime_settings(self, settings):
+        settings = settings or {}
+        custom_cache_enabled = bool(settings.get("use_custom_cache_directory"))
+        configured_cache_dir = (settings.get("cache_directory") or "").strip()
+        runtime_root = configured_cache_dir if custom_cache_enabled and configured_cache_dir else None
+        FileManager.configure_runtime_root(runtime_root)
+        self._file_manager.set_runtime_root(runtime_root)
+        self.canvas.file_manager.set_runtime_root(runtime_root)
+        self.canvas.apply_settings(settings)
+        self.canvas.set_max_undo_steps(settings.get("max_undo_steps", 50))
+        self._update_autosave_timer()
+        self.resize(
+            int(settings.get("default_panel_width", self.width()) or self.width()),
+            int(settings.get("default_panel_height", self.height()) or self.height()),
+        )
+
+    def _update_autosave_timer(self):
+        enabled = bool(self._settings.get("autosave_enabled"))
+        interval_minutes = max(1, int(self._settings.get("autosave_interval_minutes", 10) or 10))
+        if not enabled:
+            self._autosave_timer.stop()
+            return
+        self._autosave_timer.start(interval_minutes * 60 * 1000)
+
+    def _autosave_if_needed(self):
+        if not self._settings.get("autosave_enabled"):
+            return
+        if not self._is_dirty or not self._current_board_path:
+            return
+        self._save_board_to_path(self._current_board_path)
+
+    def _cleanup_runtime_cache_if_needed(self):
+        if not self._settings.get("clean_cache_on_exit", True):
+            return
+        try:
+            self._file_manager.clear_runtime_dir()
+        except Exception:
+            pass
 
     def _nuke_scene_requires_save(self):
         if nuke is None:

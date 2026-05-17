@@ -5,6 +5,7 @@ import os
 import sys
 
 from refboard_core.constants import PANEL_ID, PLUGIN_NAME
+from session_state import current_settings
 
 
 _floating_panel = None
@@ -54,7 +55,11 @@ def show_panel():
 
     _floating_panel = RefBoardPanel()
     _floating_panel.setWindowFlags(_floating_panel.windowFlags() | QtCore.Qt.Window)
-    _floating_panel.resize(1280, 720)
+    settings = current_settings()
+    _floating_panel.resize(
+        int(settings.get("default_panel_width", 1280) or 1280),
+        int(settings.get("default_panel_height", 720) or 720),
+    )
     _floating_panel.show()
     _floating_panel.raise_()
     _floating_panel.activateWindow()

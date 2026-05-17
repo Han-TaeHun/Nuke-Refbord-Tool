@@ -59,6 +59,15 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._last_pan_point = QtCore.QPoint()
         self._pan_sensitivity = 1.0
         self._updating_text_toolbar = False
+        self._note_default_font_family = "Verdana"
+        self._note_default_font_size = 18
+        self._note_default_text_color = self.DEFAULT_TEXT_COLOR
+        self._note_default_background_color = self.DEFAULT_TEXT_BACKGROUND
+        self._note_default_transparent_background = False
+        self._auto_enter_edit_mode_for_new_text = True
+        self._continue_checklist_on_new_line = True
+        self._nodemark_link_style = "Hyperlink text"
+        self._nodemark_missing_behavior = "Show warning"
         self._build_text_toolbar()
         self.scene().selectionChanged.connect(self._update_text_toolbar)
         self.horizontalScrollBar().valueChanged.connect(lambda _: self._update_text_toolbar_position())
@@ -106,14 +115,21 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         item.setPos(scene_pos)
         item.setZValue(self._next_z_value())
         self._undo_stack.push(AddBoardItemCommand(self, item, "Add Text"))
+        try:
+            self._apply_note_defaults(item)
+        except Exception:
+            pass
         item.setSelected(True)
-        item.begin_edit()
+        if self._auto_enter_edit_mode_for_new_text:
+            item.begin_edit()
+        self.viewport().update()
         return item
 
     def add_nodemark_link(self, backdrop_name, label, scene_pos=None):
         if scene_pos is None:
             scene_pos = self.mapToScene(self.viewport().rect().center())
         item = RefNodeMarkItem(backdrop_name, label)
+        self._apply_nodemark_item_settings(item)
         self._wire_item_callbacks(item)
         item.setPos(scene_pos)
         item.setZValue(self._next_z_value())
@@ -170,6 +186,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             max_image_z = max(max_image_z, int(item.zValue()))
         for model in note_models or []:
             item = RefNoteItem.from_model(model)
+            item.set_continue_checklist_on_new_line(self._continue_checklist_on_new_line)
             self._wire_note_item(item)
             self._wire_item_callbacks(item)
             item.setZValue(max(max_image_z + 1, item.zValue()))
@@ -177,6 +194,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             max_image_z = max(max_image_z, int(item.zValue()))
         for model in nodemark_models or []:
             item = RefNodeMarkItem.from_model(model)
+            self._apply_nodemark_item_settings(item)
             self._wire_item_callbacks(item)
             item.setZValue(max(max_image_z + 1, item.zValue()))
             self.scene().addItem(item)
@@ -232,6 +250,39 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._sync_text_toolbar_state(note)
         self._update_text_toolbar_position()
         return True
+
+    def apply_settings(self, settings):
+        settings = settings or {}
+        self._note_default_font_family = settings.get("default_note_font_family", "Verdana")
+        self._note_default_font_size = int(settings.get("default_note_font_size", 18) or 18)
+        self._note_default_text_color = settings.get("default_note_text_color", self.DEFAULT_TEXT_COLOR)
+        self._note_default_background_color = settings.get(
+            "default_note_background_color",
+            self.DEFAULT_TEXT_BACKGROUND,
+        )
+        self._note_default_transparent_background = bool(
+            settings.get("default_note_transparent_background")
+        )
+        self._auto_enter_edit_mode_for_new_text = bool(
+            settings.get("auto_enter_edit_mode_for_new_text", True)
+        )
+        self._continue_checklist_on_new_line = bool(
+            settings.get("continue_checklist_on_new_line", True)
+        )
+        self._nodemark_link_style = settings.get("nodemark_link_style", "Hyperlink text")
+        self._nodemark_missing_behavior = settings.get("nodemark_missing_behavior", "Show warning")
+        self.DEFAULT_TEXT_COLOR = self._note_default_text_color
+        self.DEFAULT_TEXT_BACKGROUND = (
+            "transparent"
+            if self._note_default_transparent_background
+            else self._note_default_background_color
+        )
+        for item in self.note_items():
+            item.set_continue_checklist_on_new_line(self._continue_checklist_on_new_line)
+        for item in self.nodemark_items():
+            self._apply_nodemark_item_settings(item)
+        self._update_text_toolbar()
+        self.viewport().update()
 
     def resizeEvent(self, event):
         super(RefCanvasView, self).resizeEvent(event)
@@ -678,6 +729,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         document = item.document()
         if document is None or getattr(item, "_refboard_note_wired", False):
             return
+        item.set_continue_checklist_on_new_line(self._continue_checklist_on_new_line)
         document.contentsChanged.connect(self._on_note_contents_changed)
         item._refboard_note_wired = True
 
@@ -760,6 +812,28 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.boardChanged.emit()
         self._update_text_toolbar()
         self.viewport().update()
+
+    def _apply_note_defaults(self, item):
+        item.set_continue_checklist_on_new_line(self._continue_checklist_on_new_line)
+        background = (
+            "transparent"
+            if self._note_default_transparent_background
+            else self._note_default_background_color
+        )
+        item.apply_text_format(
+            font_family=self._note_default_font_family,
+            point_size=self._note_default_font_size,
+            text_color=self._note_default_text_color,
+            background_color=background,
+        )
+
+    def _apply_nodemark_item_settings(self, item):
+        if item is None:
+            return
+        item.apply_display_settings(
+            link_style=self._nodemark_link_style,
+            missing_behavior=self._nodemark_missing_behavior,
+        )
 
     def _event_has_images(self, event):
         mime = event.mimeData()
@@ -1021,7 +1095,9 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def _can_paste_from_clipboard(self):
         clipboard = QtWidgets.QApplication.clipboard()
         mime = clipboard.mimeData()
-        if self._image_paths_from_mime(mime, include_image_data=True):
+        if self._image_paths_from_mime(mime):
+            return True
+        if mime.hasImage() or self._mime_has_remote_url(mime):
             return True
         return bool((clipboard.text() or "").strip())
 

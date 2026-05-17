@@ -32,6 +32,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self._scaling = False
         self._drag_start_scale = 1.0
         self._drag_start_distance = 1.0
+        self._continue_checklist_on_new_line = True
         self._base_text_color = QtGui.QColor("#f2f2f2")
         self._base_background_color = QtGui.QColor("#202124")
         self.setAcceptHoverEvents(True)
@@ -146,6 +147,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             return
         insert_checklist_prefix = (
             self.is_editing()
+            and self._continue_checklist_on_new_line
             and event.key() in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter)
             and self._current_block_is_checklist()
         )
@@ -341,6 +343,9 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self._configure_text_layout()
         self._update_transform_origin()
         self.update()
+
+    def set_continue_checklist_on_new_line(self, enabled):
+        self._continue_checklist_on_new_line = bool(enabled)
 
     def _toggle_checklist_at(self, item_pos):
         block = self._checklist_block_at(item_pos)

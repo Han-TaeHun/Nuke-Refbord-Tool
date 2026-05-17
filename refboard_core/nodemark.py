@@ -6,6 +6,7 @@ from refboard_core.constants import (
     NODEMARK_DEFAULT_LABEL,
     NODEMARK_PREFIX,
 )
+from session_state import current_settings
 
 
 def create_nodemark_from_selection():
@@ -38,7 +39,7 @@ def create_nodemark_from_selection():
         ypos=bbox["y"],
         bdwidth=bbox["width"],
         bdheight=bbox["height"],
-        tile_color=int(NODEMARK_BACKDROP_COLOR),
+        tile_color=int(_configured_backdrop_color()),
         note_font_size=32,
         label=label_slug,
         name=node_name,
@@ -176,3 +177,15 @@ def _get_nuke_module():
     except ImportError:
         return None
     return nuke
+
+
+def _configured_backdrop_color():
+    color_value = current_settings().get("nodemark_backdrop_color", "#2F4F6F")
+    if isinstance(color_value, str):
+        text = color_value.strip().lstrip("#")
+        if len(text) == 6:
+            try:
+                return int("{0}FF".format(text), 16)
+            except ValueError:
+                pass
+    return NODEMARK_BACKDROP_COLOR

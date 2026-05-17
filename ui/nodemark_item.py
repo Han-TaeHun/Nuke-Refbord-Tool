@@ -10,21 +10,25 @@ from models.nodemark_model import NodeMarkModel
 class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
     """Lightweight hyperlink-style item that jumps to a NodeMark backdrop."""
 
+    PILL_PADDING_X = 10.0
+    PILL_PADDING_Y = 4.0
+
     def __init__(self, backdrop_name, label, parent=None):
         super(RefNodeMarkItem, self).__init__(parent)
         self.refboard_item_type = "nodemark"
         self.backdrop_name = backdrop_name
         self.label = label
+        self._link_style = "Hyperlink text"
+        self._missing_behavior = "Show warning"
+        self._hovered = False
         self._interaction_start_state = None
         self.on_state_changed = None
         self._pressed = False
         self._press_pos = QtCore.QPointF()
         self._press_scene_pos = QtCore.QPointF()
         self.setPlainText(label)
-        self.setDefaultTextColor(QtGui.QColor("#7fc8ff"))
         font = QtGui.QFont()
         font.setPointSize(13)
-        font.setUnderline(True)
         self.setFont(font)
         self.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
         self.setFlags(
@@ -34,6 +38,23 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         )
         self.setAcceptHoverEvents(True)
         self.setCursor(QtCore.Qt.PointingHandCursor)
+        self.apply_display_settings()
+
+    def boundingRect(self):
+        rect = super(RefNodeMarkItem, self).boundingRect()
+        if self._is_pill_style():
+            return rect.adjusted(
+                -self.PILL_PADDING_X,
+                -self.PILL_PADDING_Y,
+                self.PILL_PADDING_X,
+                self.PILL_PADDING_Y,
+            )
+        return rect
+
+    def shape(self):
+        path = QtGui.QPainterPath()
+        path.addRect(self.boundingRect())
+        return path
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -53,11 +74,13 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
             self._notify_state_change()
 
     def hoverEnterEvent(self, event):
-        self.setDefaultTextColor(QtGui.QColor("#b7e3ff"))
+        self._hovered = True
+        self._refresh_style()
         super(RefNodeMarkItem, self).hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        self.setDefaultTextColor(QtGui.QColor("#7fc8ff"))
+        self._hovered = False
+        self._refresh_style()
         super(RefNodeMarkItem, self).hoverLeaveEvent(event)
 
     def contextMenuEvent(self, event):
@@ -76,11 +99,12 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
 
         if jump_to_nodemark(self.backdrop_name):
             return
-        QtWidgets.QMessageBox.information(
-            None,
-            "NodeMark Missing",
-            "This NodeMark backdrop could not be found in the current script.",
-        )
+        if self._missing_behavior == "Show warning":
+            QtWidgets.QMessageBox.information(
+                None,
+                "NodeMark Missing",
+                "This NodeMark backdrop could not be found in the current script.",
+            )
 
     def to_model(self):
         return NodeMarkModel(
@@ -125,3 +149,39 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
             if abs(float(before_state.get(key, 0.0)) - float(after_state.get(key, 0.0))) > 0.001:
                 return False
         return True
+
+    def apply_display_settings(self, link_style=None, missing_behavior=None):
+        if link_style is not None:
+            self._link_style = link_style
+        if missing_behavior is not None:
+            self._missing_behavior = missing_behavior
+        self.prepareGeometryChange()
+        self._refresh_style()
+        self.update()
+
+    def paint(self, painter, option, widget=None):
+        if self._is_pill_style():
+            painter.save()
+            rect = self.boundingRect()
+            fill = QtGui.QColor("#3b5970") if not self._hovered else QtGui.QColor("#476a84")
+            border = QtGui.QColor("#5e86a3")
+            painter.setPen(QtGui.QPen(border, 1.0))
+            painter.setBrush(fill)
+            painter.drawRoundedRect(rect, 8.0, 8.0)
+            painter.restore()
+        super(RefNodeMarkItem, self).paint(painter, option, widget)
+
+    def _is_pill_style(self):
+        return self._link_style == "Pill button"
+
+    def _refresh_style(self):
+        font = QtGui.QFont(self.font())
+        if self._is_pill_style():
+            font.setUnderline(False)
+            font.setBold(True)
+            self.setDefaultTextColor(QtGui.QColor("#f3f6fb"))
+        else:
+            font.setUnderline(True)
+            font.setBold(False)
+            self.setDefaultTextColor(QtGui.QColor("#b7e3ff" if self._hovered else "#7fc8ff"))
+        self.setFont(font)

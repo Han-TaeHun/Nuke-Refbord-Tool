@@ -4,11 +4,15 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
+from refboard_core.file_manager import FileManager
+from session_state import default_settings
 from ui.styles import PANEL_STYLE
 
 
 class RefBoardSettingsDialog(QtWidgets.QDialog):
     """Preferences-style placeholder settings dialog for future board options."""
+
+    settingsApplied = QtCore.Signal(dict)
 
     def __init__(self, parent=None):
         super(RefBoardSettingsDialog, self).__init__(parent)
@@ -74,8 +78,8 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         self._save_button = QtWidgets.QPushButton("Save", self)
         self._apply_button = QtWidgets.QPushButton("Apply", self)
         self._cancel_button = QtWidgets.QPushButton("Cancel", self)
-        self._save_button.clicked.connect(self.accept)
-        self._apply_button.clicked.connect(self._apply_placeholder)
+        self._save_button.clicked.connect(self._save_and_close)
+        self._apply_button.clicked.connect(self._apply_current_settings)
         self._cancel_button.clicked.connect(self.reject)
         footer_layout.addWidget(self._save_button)
         footer_layout.addWidget(self._apply_button)
@@ -166,10 +170,13 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     def _build_canvas_page(self):
         page = self._page_container()
         layout = page.layout()
-        layout.addWidget(self._kv_row("Maximum undo steps", self._spin_box(50)))
-        layout.addWidget(self._kv_row("Default panel width", self._spin_box(1280, suffix=" px")))
-        layout.addWidget(self._kv_row("Default panel height", self._spin_box(720, suffix=" px")))
+        self._undo_steps_spinbox = self._spin_box(50)
+        self._panel_width_spinbox = self._spin_box(1280, suffix=" px")
+        self._panel_height_spinbox = self._spin_box(720, suffix=" px")
         self._debug_mode_checkbox = self._checkbox_only(False)
+        layout.addWidget(self._kv_row("Maximum undo steps", self._undo_steps_spinbox))
+        layout.addWidget(self._kv_row("Default panel width", self._panel_width_spinbox))
+        layout.addWidget(self._kv_row("Default panel height", self._panel_height_spinbox))
         layout.addWidget(self._kv_row("Debug mode", self._debug_mode_checkbox))
         layout.addSpacing(10)
         layout.addWidget(
@@ -184,13 +191,20 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     def _build_text_notes_page(self):
         page = self._page_container()
         layout = page.layout()
-        layout.addWidget(self._kv_row("Default font", self._combo(["Verdana", "Arial", "Microsoft YaHei", "Placeholder"])))
-        layout.addWidget(self._kv_row("Default font size", self._spin_box(18, suffix=" pt")))
-        layout.addWidget(self._kv_row("Default text color", self._color_picker("#f2f2f2")))
-        layout.addWidget(self._kv_row("Default text background", self._color_picker("#202124")))
-        layout.addWidget(self._kv_row("Default transparent background", self._checkbox_only(False)))
-        layout.addWidget(self._kv_row("Auto-enter edit mode for new text", self._checkbox_only(True)))
-        layout.addWidget(self._kv_row("Continue checklist on new line", self._checkbox_only(True)))
+        self._default_font_combo = self._combo(["Verdana", "Arial", "Microsoft YaHei", "Placeholder"])
+        self._default_font_size_spinbox = self._spin_box(18, suffix=" pt")
+        self._default_text_color_picker = self._color_picker("#f2f2f2")
+        self._default_text_background_picker = self._color_picker("#202124")
+        self._default_transparent_background_checkbox = self._checkbox_only(False)
+        self._auto_enter_edit_checkbox = self._checkbox_only(True)
+        self._continue_checklist_checkbox = self._checkbox_only(True)
+        layout.addWidget(self._kv_row("Default font", self._default_font_combo))
+        layout.addWidget(self._kv_row("Default font size", self._default_font_size_spinbox))
+        layout.addWidget(self._kv_row("Default text color", self._default_text_color_picker))
+        layout.addWidget(self._kv_row("Default text background", self._default_text_background_picker))
+        layout.addWidget(self._kv_row("Default transparent background", self._default_transparent_background_checkbox))
+        layout.addWidget(self._kv_row("Auto-enter edit mode for new text", self._auto_enter_edit_checkbox))
+        layout.addWidget(self._kv_row("Continue checklist on new line", self._continue_checklist_checkbox))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
@@ -204,19 +218,22 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     def _build_nodemark_page(self):
         page = self._page_container()
         layout = page.layout()
+        self._nodemark_link_style_combo = self._combo(["Hyperlink text", "Pill button"])
+        self._nodemark_missing_behavior_combo = self._combo(["Show warning", "Do nothing"])
+        self._nodemark_backdrop_color_picker = self._color_picker("#2F4F6F")
         layout.addWidget(
             self._kv_row(
                 "Default NodeMark link style",
-                self._combo(["Hyperlink text", "Pill button"]),
+                self._nodemark_link_style_combo,
             )
         )
         layout.addWidget(
             self._kv_row(
                 "Missing backdrop behavior",
-                self._combo(["Show warning", "Do nothing"]),
+                self._nodemark_missing_behavior_combo,
             )
         )
-        layout.addWidget(self._kv_row("Default backdrop color", self._color_picker("#2F4F6F")))
+        layout.addWidget(self._kv_row("Default backdrop color", self._nodemark_backdrop_color_picker))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
@@ -344,19 +361,8 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         button.setFixedSize(30, 30)
         return button
 
-    def _apply_placeholder(self):
-        QtWidgets.QToolTip.showText(
-            self.mapToGlobal(QtCore.QPoint(self.width() - 150, self.height() - 44)),
-            "Apply placeholder",
-            self,
-        )
-
     def _reset_placeholder(self):
-        QtWidgets.QToolTip.showText(
-            self.mapToGlobal(QtCore.QPoint(40, self.height() - 44)),
-            "Reset placeholder",
-            self,
-        )
+        self.load_settings(default_settings())
 
     def _update_autosave_controls_state(self, enabled):
         for widget in (
@@ -412,3 +418,84 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     def debug_mode_enabled(self):
         checkbox = getattr(self, "_debug_mode_checkbox", None)
         return bool(checkbox and checkbox.isChecked())
+
+    def load_settings(self, settings):
+        settings = dict(default_settings(), **(settings or {}))
+        self._autosave_enable_checkbox.setChecked(bool(settings.get("autosave_enabled")))
+        self._autosave_force_spinbox.setValue(int(settings.get("autosave_interval_minutes", 10) or 10))
+        self._custom_cache_checkbox.setChecked(bool(settings.get("use_custom_cache_directory")))
+        cache_directory = settings.get("cache_directory") or FileManager.default_runtime_root()
+        self._cache_path_picker._path_line_edit.setText(cache_directory)
+        self._clean_cache_checkbox.setChecked(bool(settings.get("clean_cache_on_exit", True)))
+        self._undo_steps_spinbox.setValue(int(settings.get("max_undo_steps", 50) or 50))
+        self._panel_width_spinbox.setValue(int(settings.get("default_panel_width", 1280) or 1280))
+        self._panel_height_spinbox.setValue(int(settings.get("default_panel_height", 720) or 720))
+        self._debug_mode_checkbox.setChecked(bool(settings.get("debug_mode")))
+        self._set_combo_text(self._default_font_combo, settings.get("default_note_font_family", "Verdana"))
+        self._default_font_size_spinbox.setValue(int(settings.get("default_note_font_size", 18) or 18))
+        self._set_color_picker_value(self._default_text_color_picker, settings.get("default_note_text_color", "#F2F2F2"))
+        self._set_color_picker_value(
+            self._default_text_background_picker,
+            settings.get("default_note_background_color", "#202124"),
+        )
+        self._default_transparent_background_checkbox.setChecked(
+            bool(settings.get("default_note_transparent_background"))
+        )
+        self._auto_enter_edit_checkbox.setChecked(bool(settings.get("auto_enter_edit_mode_for_new_text", True)))
+        self._continue_checklist_checkbox.setChecked(bool(settings.get("continue_checklist_on_new_line", True)))
+        self._set_combo_text(self._nodemark_link_style_combo, settings.get("nodemark_link_style", "Hyperlink text"))
+        self._set_combo_text(
+            self._nodemark_missing_behavior_combo,
+            settings.get("nodemark_missing_behavior", "Show warning"),
+        )
+        self._set_color_picker_value(
+            self._nodemark_backdrop_color_picker,
+            settings.get("nodemark_backdrop_color", "#2F4F6F"),
+        )
+        self._update_autosave_controls_state(self._autosave_enable_checkbox.isChecked())
+        self._update_cache_path_controls_state(self._custom_cache_checkbox.isChecked())
+
+    def current_settings(self):
+        return {
+            "autosave_enabled": self._autosave_enable_checkbox.isChecked(),
+            "autosave_interval_minutes": self._autosave_force_spinbox.value(),
+            "use_custom_cache_directory": self._custom_cache_checkbox.isChecked(),
+            "cache_directory": self._cache_path_picker._path_line_edit.text().strip(),
+            "clean_cache_on_exit": self._clean_cache_checkbox.isChecked(),
+            "max_undo_steps": self._undo_steps_spinbox.value(),
+            "default_panel_width": self._panel_width_spinbox.value(),
+            "default_panel_height": self._panel_height_spinbox.value(),
+            "debug_mode": self._debug_mode_checkbox.isChecked(),
+            "default_note_font_family": self._default_font_combo.currentText(),
+            "default_note_font_size": self._default_font_size_spinbox.value(),
+            "default_note_text_color": self._color_picker_value(self._default_text_color_picker),
+            "default_note_background_color": self._color_picker_value(self._default_text_background_picker),
+            "default_note_transparent_background": self._default_transparent_background_checkbox.isChecked(),
+            "auto_enter_edit_mode_for_new_text": self._auto_enter_edit_checkbox.isChecked(),
+            "continue_checklist_on_new_line": self._continue_checklist_checkbox.isChecked(),
+            "nodemark_link_style": self._nodemark_link_style_combo.currentText(),
+            "nodemark_missing_behavior": self._nodemark_missing_behavior_combo.currentText(),
+            "nodemark_backdrop_color": self._color_picker_value(self._nodemark_backdrop_color_picker),
+        }
+
+    def _save_and_close(self):
+        self._apply_current_settings()
+        self.accept()
+
+    def _apply_current_settings(self):
+        self.settingsApplied.emit(self.current_settings())
+
+    def _set_combo_text(self, combo, text):
+        index = combo.findText(text)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _set_color_picker_value(self, picker_row, value):
+        line_edit = picker_row.layout().itemAt(1).widget()
+        swatch = picker_row.layout().itemAt(0).widget()
+        line_edit.setText((value or "").strip())
+        self._apply_color_swatch(swatch, line_edit.text().strip())
+
+    def _color_picker_value(self, picker_row):
+        line_edit = picker_row.layout().itemAt(1).widget()
+        return line_edit.text().strip().upper()
