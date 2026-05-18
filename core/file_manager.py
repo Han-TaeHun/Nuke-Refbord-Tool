@@ -50,5 +50,22 @@ class FileManager:
         return os.path.join(self.ensure_runtime_dir(), base)
 
     def clear_runtime_dir(self):
-        if os.path.exists(self.runtime_dir):
-            shutil.rmtree(self.runtime_dir, ignore_errors=True)
+        runtime_dir = self.runtime_dir
+        if not os.path.exists(runtime_dir):
+            return
+
+        default_root = self._normalize_runtime_root(self.default_runtime_root())
+        current_root = self._normalize_runtime_root(runtime_dir)
+        if current_root == default_root:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
+            return
+
+        for name in os.listdir(runtime_dir):
+            path = os.path.join(runtime_dir, name)
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    os.remove(path)
+            except Exception:
+                pass

@@ -159,6 +159,8 @@ class RefBoardPanel(QtWidgets.QWidget):
         return bool(self._settings.get("debug_mode"))
 
     def _handle_new_board_clicked(self):
+        if not self._confirm_safe_board_change():
+            return
         if self._nuke_scene_requires_save():
             QtWidgets.QMessageBox.information(
                 self,
@@ -199,6 +201,8 @@ class RefBoardPanel(QtWidgets.QWidget):
             self._save_board_to_path(board_path)
 
     def _import_board(self):
+        if not self._confirm_safe_board_change():
+            return
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Open RefBoard",
@@ -210,6 +214,8 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._load_board_from_path(file_path)
 
     def _switch_board(self):
+        if not self._confirm_safe_board_change():
+            return
         scene_path = self._current_nuke_scene_path()
         if not scene_path:
             QtWidgets.QMessageBox.information(
@@ -506,6 +512,16 @@ class RefBoardPanel(QtWidgets.QWidget):
             self._file_manager.clear_runtime_dir()
         except Exception:
             pass
+
+    def _confirm_safe_board_change(self):
+        if not self._is_dirty:
+            return True
+        QtWidgets.QMessageBox.information(
+            self,
+            "Please Save Board",
+            "Please save the current board first.",
+        )
+        return False
 
     def _nuke_scene_requires_save(self):
         if nuke is None:
