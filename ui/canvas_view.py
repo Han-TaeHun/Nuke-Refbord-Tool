@@ -119,9 +119,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self._apply_note_defaults(item)
         except Exception:
             pass
-        item.setSelected(True)
-        if self._auto_enter_edit_mode_for_new_text:
-            item.begin_edit()
+        self._activate_new_note(item)
         self.viewport().update()
         return item
 
@@ -828,6 +826,18 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             text_color=self._note_default_text_color,
             background_color=background,
         )
+
+    def _activate_new_note(self, item):
+        if item is None or item.scene() is not self.scene():
+            return
+        self.scene().clearSelection()
+        item.setSelected(True)
+        self.setFocus(QtCore.Qt.OtherFocusReason)
+        self.scene().setFocusItem(item, QtCore.Qt.OtherFocusReason)
+        if self._auto_enter_edit_mode_for_new_text:
+            item.begin_edit()
+        self._update_text_toolbar()
+        self._update_text_toolbar_position()
 
     def _apply_nodemark_item_settings(self, item):
         if item is None:

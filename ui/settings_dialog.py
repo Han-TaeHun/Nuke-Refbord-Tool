@@ -5,7 +5,7 @@ except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
 from refboard_core.file_manager import FileManager
-from session_state import default_settings
+from session_state import current_settings, default_settings, reset_settings
 from ui.styles import PANEL_STYLE
 
 
@@ -25,6 +25,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         self._populate_categories()
         self._left_tree.expandAll()
         self._left_tree.setCurrentItem(self._left_tree.topLevelItem(0))
+        self.load_settings(current_settings())
 
     def _build_ui(self):
         root_layout = QtWidgets.QVBoxLayout(self)
@@ -362,7 +363,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         return button
 
     def _reset_placeholder(self):
-        self.load_settings(default_settings())
+        self.load_settings(reset_settings(persist=False))
 
     def _update_autosave_controls_state(self, enabled):
         for widget in (
