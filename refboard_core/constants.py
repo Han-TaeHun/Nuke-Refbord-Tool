@@ -2,6 +2,7 @@
 """Project-wide constants for Nuke RefBoard."""
 
 PLUGIN_NAME = "Nuke RefBoard"
+PLUGIN_VERSION = "0.1.0-pre"
 PANEL_ID = "com.nukerefboard.panel"
 FORMAT_VERSION = "1.0"
 FILE_EXTENSION = ".refboard"

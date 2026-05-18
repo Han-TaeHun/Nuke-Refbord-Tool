@@ -105,6 +105,28 @@ QPushButton:disabled, QToolButton:disabled {
     border: 1px solid #30333a;
     color: #7b8088;
 }
+QMenu {
+    background: #25272b;
+    border: 1px solid #3d4047;
+    color: #e7e7e7;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 5px 26px 5px 22px;
+    background: transparent;
+}
+QMenu::item:selected {
+    background: #3a3d45;
+}
+QMenu::item:disabled {
+    color: #4f545d;
+    background: transparent;
+}
+QMenu::separator {
+    height: 1px;
+    background: #3b3e45;
+    margin: 4px 8px;
+}
 QFontComboBox#RefBoardFontComboBox, QSpinBox#RefBoardFontSizeBox {
     background: #18191c;
     border: 1px solid #3d4047;
@@ -233,6 +255,21 @@ QFrame#RefBoardSettingsPlaceholderBox {
 }
 QLabel#RefBoardSettingsPlaceholderText {
     color: #aeb4bf;
+}
+QLabel#RefBoardAboutTitle {
+    color: #f3f5f7;
+    font-size: 26px;
+    font-weight: 700;
+}
+QLabel#RefBoardAboutVersion {
+    color: #f2cb58;
+    font-size: 13px;
+    font-weight: 600;
+}
+QLabel#RefBoardAboutBody {
+    color: #c9ced6;
+    font-size: 13px;
+    line-height: 150%;
 }
 QPushButton#RefBoardSettingsMiniButton {
     min-width: 30px;

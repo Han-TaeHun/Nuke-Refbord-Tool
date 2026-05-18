@@ -55,16 +55,16 @@ class RefBoardPanel(QtWidgets.QWidget):
 
         self.toolbar = QtWidgets.QFrame(self)
         self.toolbar.setObjectName("RefBoardToolbarPlaceholder")
-        self.toolbar.setFixedHeight(32)
+        self.toolbar.setFixedHeight(37)
         toolbar_layout = QtWidgets.QHBoxLayout(self.toolbar)
-        toolbar_layout.setContentsMargins(8, 3, 8, 3)
+        toolbar_layout.setContentsMargins(8, 4, 8, 4)
         toolbar_layout.setSpacing(6)
 
-        self.new_board_button = self._toolbar_button("New Canvas", "Create new board")
-        self.switch_board_button = self._toolbar_button("Switch Canvas", "Switch board")
-        self.import_board_button = self._toolbar_button("Import Canvas", "Import existing .refboard")
-        self.save_board_button = self._toolbar_button("Save Canvas", "Save board")
-        self.save_as_board_button = self._toolbar_button("Save As", "Save board as...")
+        self.new_board_button = self._toolbar_button("New Board", "Create a new board")
+        self.switch_board_button = self._toolbar_button("Switch Board", "Switch to another board")
+        self.import_board_button = self._toolbar_button("Import Board", "Import an existing .refboard")
+        self.save_board_button = self._toolbar_button("Save Board", "Save the current board")
+        self.save_as_board_button = self._toolbar_button("Save As", "Save the current board as...")
         self.settings_button = self._toolbar_button("Settings", "RefBoard Settings")
         self.board_identifier_label = QtWidgets.QLabel(self.toolbar)
         self.board_identifier_label.setObjectName("RefBoardBoardIdentifierLabel")
@@ -77,7 +77,8 @@ class RefBoardPanel(QtWidgets.QWidget):
         self.pin_button.setToolTip("Keep panel on top")
         self.pin_button.setCheckable(True)
         self.pin_button.setAutoRaise(False)
-        self.pin_button.setIconSize(QtCore.QSize(16, 16))
+        self.pin_button.setIconSize(QtCore.QSize(20, 20))
+        self.pin_button.setFixedSize(QtCore.QSize(34, 30))
         self.pin_button.toggled.connect(self._set_window_pinned)
         self._update_pin_button_icon(False)
         self._set_toolbar_button_icon(self.new_board_button, "icon_NewBoard.svg")
@@ -117,7 +118,8 @@ class RefBoardPanel(QtWidgets.QWidget):
         button.setText(text)
         button.setToolTip(tooltip)
         button.setAutoRaise(False)
-        button.setIconSize(QtCore.QSize(16, 16))
+        button.setIconSize(QtCore.QSize(20, 20))
+        button.setFixedSize(QtCore.QSize(58, 29))
         return button
 
     def _set_toolbar_button_icon(self, button, icon_name):
@@ -159,7 +161,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         return bool(self._settings.get("debug_mode"))
 
     def _handle_new_board_clicked(self):
-        if not self._confirm_safe_board_change():
+        if not self._confirm_safe_board_change("create a new board"):
             return
         if self._nuke_scene_requires_save():
             QtWidgets.QMessageBox.information(
@@ -201,7 +203,7 @@ class RefBoardPanel(QtWidgets.QWidget):
             self._save_board_to_path(board_path)
 
     def _import_board(self):
-        if not self._confirm_safe_board_change():
+        if not self._confirm_safe_board_change("import another board"):
             return
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
@@ -214,7 +216,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         self._load_board_from_path(file_path)
 
     def _switch_board(self):
-        if not self._confirm_safe_board_change():
+        if not self._confirm_safe_board_change("switch boards"):
             return
         scene_path = self._current_nuke_scene_path()
         if not scene_path:
@@ -237,7 +239,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         selected_label, accepted = QtWidgets.QInputDialog.getItem(
             self,
             "Switch Board",
-            "Choose board:",
+            "Choose a board from the current Nuke scene folder:",
             labels,
             0,
             False,
@@ -252,12 +254,7 @@ class RefBoardPanel(QtWidgets.QWidget):
 
     def _save_board(self):
         if not self._current_board_path:
-            QtWidgets.QMessageBox.information(
-                self,
-                "Please Create Board",
-                "Please create a new board first.",
-            )
-            return False
+            return self._save_board_as()
         return self._save_board_to_path(self._current_board_path)
 
     def _save_board_as(self):
@@ -302,7 +299,7 @@ class RefBoardPanel(QtWidgets.QWidget):
         identifier, accepted = QtWidgets.QInputDialog.getText(
             self,
             "Create New Board",
-            "Identifier:",
+            "Board identifier (saved next to the current Nuke scene):",
         )
         if not accepted:
             return None
@@ -345,9 +342,14 @@ class RefBoardPanel(QtWidgets.QWidget):
             self._suspend_dirty_tracking = False
             self._current_board_path = file_path
             self._set_dirty(False)
+        except Exception as exc:
+            self.save_toast.show_error_bottom_left("RefBoard load failed")
+            self._show_load_failure_message(exc)
+            return False
         finally:
             self._suspend_dirty_tracking = False
             self.loading_overlay.hide()
+        return True
 
     def _set_window_pinned(self, pinned):
         self._is_pinned = bool(pinned)
@@ -463,11 +465,19 @@ class RefBoardPanel(QtWidgets.QWidget):
             "RefBoard could not be saved.\n\n{0}".format(message),
         )
 
+    def _show_load_failure_message(self, exc):
+        message = str(exc).strip() or exc.__class__.__name__
+        QtWidgets.QMessageBox.warning(
+            self,
+            "Load Failed",
+            "RefBoard could not be loaded.\n\n{0}".format(message),
+        )
+
     def empty_state_message(self):
         if self._nuke_scene_requires_save():
             return u"Please save the Nuke scene first"
         if not self._current_board_path:
-            return u"Please create a board or load / import a board"
+            return u"Create a board, switch board, or import a .refboard"
         return u">>>  Please drag the image here  <<<"
 
     def _apply_settings(self, settings):
@@ -513,29 +523,18 @@ class RefBoardPanel(QtWidgets.QWidget):
         except Exception:
             pass
 
-    def _confirm_safe_board_change(self):
+    def _confirm_safe_board_change(self, action_label="continue"):
         if not self._is_dirty:
             return True
         QtWidgets.QMessageBox.information(
             self,
-            "Please Save Board",
-            "Please save the current board first.",
+            "Unsaved Board",
+            "Please save the current board before you {0}.".format(action_label),
         )
         return False
 
     def _nuke_scene_requires_save(self):
-        if nuke is None:
-            return False
-        try:
-            root = nuke.root()
-            if root is None:
-                return False
-            scene_name = root.name() or ""
-            if scene_name == "Root":
-                return True
-            return bool(root.modified())
-        except Exception:
-            return False
+        return not bool(self._current_nuke_scene_path())
 
     def _current_nuke_scene_path(self):
         if nuke is None:
@@ -583,9 +582,10 @@ class RefBoardPanel(QtWidgets.QWidget):
 
     def _switch_board_label_for_path(self, file_path):
         identifier = self._board_identifier_for_path(file_path)
+        file_name = os.path.basename(file_path)
         if identifier:
-            return identifier
-        return os.path.splitext(os.path.basename(file_path))[0]
+            return "{0} - {1}".format(identifier, file_name)
+        return os.path.splitext(file_name)[0]
 
     def _board_identifier_for_path(self, file_path):
         if not file_path:

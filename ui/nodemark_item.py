@@ -103,7 +103,8 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
             QtWidgets.QMessageBox.information(
                 None,
                 "NodeMark Missing",
-                "This NodeMark backdrop could not be found in the current script.",
+                "This NodeMark backdrop could not be found in the current script.\n\n"
+                "It may have been deleted, renamed, or the board may belong to another Nuke script.",
             )
 
     def to_model(self):

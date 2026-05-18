@@ -42,6 +42,36 @@ class RemoveBoardItemsCommand(QtWidgets.QUndoCommand):
             self.view.viewport().update()
 
 
+class BringBoardItemsToFrontCommand(QtWidgets.QUndoCommand):
+    """Move selected board items above the rest of the canvas."""
+
+    def __init__(self, view, items, label):
+        super(BringBoardItemsToFrontCommand, self).__init__(label)
+        self.view = view
+        self.items = list(items or [])
+        self.before_z_values = [(item, float(item.zValue())) for item in self.items]
+        self.after_z_values = []
+
+    def redo(self):
+        if not self.after_z_values:
+            next_z = self.view._next_z_value()
+            self.after_z_values = []
+            for index, item in enumerate(sorted(self.items, key=lambda board_item: board_item.zValue())):
+                self.after_z_values.append((item, float(next_z + index)))
+        self._apply_z_values(self.after_z_values)
+
+    def undo(self):
+        self._apply_z_values(self.before_z_values)
+
+    def _apply_z_values(self, z_values):
+        for item, z_value in z_values:
+            item.setZValue(z_value)
+        self.view.scene().clearSelection()
+        for item, _ in z_values:
+            item.setSelected(True)
+        self.view._notify_scene_changed()
+
+
 class ItemStateChangeCommand(QtWidgets.QUndoCommand):
     """Undoable move / rotate / scale state change for one item."""
 

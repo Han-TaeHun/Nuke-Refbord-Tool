@@ -39,6 +39,11 @@ def _reload_plugin_modules():
 def open_refboard_panel():
     """Reload the plugin code and open the floating panel."""
 
+    existing_panel = _find_existing_refboard_panel()
+    if existing_panel is not None:
+        _show_existing_panel(existing_panel)
+        return existing_panel
+
     _reload_plugin_modules()
     from main import show_panel
 
@@ -52,6 +57,36 @@ def create_refboard_nodemark():
     from refboard_core.nodemark import create_nodemark_from_selection
 
     return create_nodemark_from_selection()
+
+
+def _find_existing_refboard_panel():
+    try:
+        from PySide2 import QtWidgets
+    except ImportError:  # pragma: no cover - for newer host apps
+        try:
+            from PySide6 import QtWidgets
+        except ImportError:
+            return None
+
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        return None
+    for widget in app.topLevelWidgets():
+        try:
+            if widget.objectName() == "NukeRefBoardPanel" and widget.isVisible():
+                return widget
+        except RuntimeError:
+            continue
+    return None
+
+
+def _show_existing_panel(panel):
+    if panel.isMinimized():
+        panel.showNormal()
+    else:
+        panel.show()
+    panel.raise_()
+    panel.activateWindow()
 
 
 _ensure_plugin_path()

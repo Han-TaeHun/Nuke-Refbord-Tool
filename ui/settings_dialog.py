@@ -4,6 +4,7 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
+from refboard_core.constants import PLUGIN_NAME, PLUGIN_VERSION
 from refboard_core.file_manager import FileManager
 from session_state import current_settings, default_settings, reset_settings
 from ui.styles import PANEL_STYLE
@@ -94,6 +95,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
             ("Canvas", None, self._build_canvas_page()),
             ("Text / Notes", None, self._build_text_notes_page()),
             ("NodeMark", None, self._build_nodemark_page()),
+            ("About", None, self._build_about_page()),
         ]
 
         for title, parent_title, widget in pages:
@@ -245,6 +247,51 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         layout.addStretch(1)
         return page
 
+    def _build_about_page(self):
+        page = self._page_container()
+        layout = page.layout()
+        layout.addWidget(self._about_title(PLUGIN_NAME))
+        layout.addWidget(self._about_version("Version {0}".format(PLUGIN_VERSION)))
+        layout.addSpacing(8)
+        layout.addWidget(
+            self._about_body(
+                "Reference images, notes, checklists, NodeMarks, and frame jumps inside Nuke.\n\n"
+                "Preview release for workflow testing.\n"
+                "This tool is designed for shot-side reference and notes. It is not intended to replace PureRef."
+            )
+        )
+        layout.addSpacing(10)
+        layout.addWidget(self._section_title("Current feature set"))
+        layout.addWidget(
+            self._about_body(
+                "Images\n"
+                "Text notes\n"
+                "Checklists\n"
+                "NodeMark links\n"
+                "Frame jump links\n"
+                ".refboard save / load / switch"
+            )
+        )
+        layout.addSpacing(10)
+        layout.addWidget(self._section_title("Storage"))
+        layout.addWidget(
+            self._about_body(
+                "Boards are saved as .refboard files.\n"
+                "New boards are saved next to the current Nuke script."
+            )
+        )
+        layout.addSpacing(10)
+        layout.addWidget(self._section_title("Build"))
+        layout.addWidget(
+            self._about_body(
+                "Created by: Simon.Ming.\n"
+                "Bug reports: simon.workshop@outlook.com\n"
+                "== Pre-release build for testing ==."
+            )
+        )
+        layout.addStretch(1)
+        return page
+
     def _page_container(self):
         page = QtWidgets.QWidget(self._stack)
         layout = QtWidgets.QVBoxLayout(page)
@@ -255,6 +302,22 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     def _section_title(self, text):
         label = QtWidgets.QLabel(text, self)
         label.setObjectName("RefBoardSettingsSectionTitle")
+        return label
+
+    def _about_title(self, text):
+        label = QtWidgets.QLabel(text, self)
+        label.setObjectName("RefBoardAboutTitle")
+        return label
+
+    def _about_version(self, text):
+        label = QtWidgets.QLabel(text, self)
+        label.setObjectName("RefBoardAboutVersion")
+        return label
+
+    def _about_body(self, text):
+        label = QtWidgets.QLabel(text, self)
+        label.setObjectName("RefBoardAboutBody")
+        label.setWordWrap(True)
         return label
 
     def _kv_row(self, label_text, widget):

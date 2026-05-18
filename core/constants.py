@@ -3,7 +3,7 @@
 
 PLUGIN_NAME = "Nuke RefBoard"
 PANEL_ID = "com.nukerefboard.panel"
-FORMAT_VERSION = "1.0"
+FORMAT_VERSION = "0.1.0-pre"
 FILE_EXTENSION = ".refboard"
 
 SUPPORTED_IMAGE_EXTENSIONS = {

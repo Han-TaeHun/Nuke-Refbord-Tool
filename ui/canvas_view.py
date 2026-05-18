@@ -22,7 +22,12 @@ from ui.image_item import RefImageItem
 from ui.nodemark_dialog import AddNodeMarkDialog
 from ui.nodemark_item import RefNodeMarkItem
 from ui.note_item import RefNoteItem
-from ui.undo_commands import AddBoardItemCommand, ItemStateChangeCommand, RemoveBoardItemsCommand
+from ui.undo_commands import (
+    AddBoardItemCommand,
+    BringBoardItemsToFrontCommand,
+    ItemStateChangeCommand,
+    RemoveBoardItemsCommand,
+)
 
 
 class RefCanvasView(QtWidgets.QGraphicsView):
@@ -393,18 +398,21 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
         new_text_action = menu.addAction("New Text")
+        new_checklist_action = menu.addAction("New Checklist")
         add_nodemark_action = menu.addAction("Add NodeMark")
         add_framejump_action = menu.addAction("Add Current Frame")
         menu.addSeparator()
         copy_action = menu.addAction("Copy")
         paste_action = menu.addAction("Paste")
         undo_action = menu.addAction("Undo")
+        bring_to_front_action = menu.addAction("Bring to Front")
         menu.addSeparator()
         settings_action = menu.addAction("Settings")
 
         copy_action.setEnabled(self._can_copy_selected_content())
         paste_action.setEnabled(self._can_paste_from_clipboard())
         undo_action.setEnabled(self._undo_stack.canUndo())
+        bring_to_front_action.setEnabled(bool(self._selected_board_items()))
 
         debug_menu = None
         test_loading_action = None
@@ -427,6 +435,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             return
         if action == new_text_action:
             self.add_note(self.mapToScene(event.pos()))
+        elif action == new_checklist_action:
+            self.add_checklist(self.mapToScene(event.pos()))
         elif action == add_nodemark_action:
             self._prompt_add_nodemark(self.mapToScene(event.pos()))
         elif action == add_framejump_action:
@@ -437,6 +447,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.paste_from_clipboard()
         elif action == undo_action:
             self.undo_last_action()
+        elif action == bring_to_front_action:
+            self.bring_selected_items_to_front()
         elif action == settings_action:
             panel = self.window()
             if hasattr(panel, "open_settings_dialog"):
@@ -762,6 +774,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._update_text_toolbar()
         self._update_text_toolbar_position()
         return True
+
+    def add_checklist(self, scene_pos=None):
+        note = self.add_note(scene_pos=scene_pos, text="")
+        note.insert_checklist_item()
+        self._notify_scene_changed()
+        self._update_text_toolbar()
+        self._update_text_toolbar_position()
+        return note
 
     def undo_last_action(self):
         if not self._undo_stack.canUndo():
@@ -1125,6 +1145,14 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             return False
         label = "Delete Items" if len(items) > 1 else "Delete Item"
         self._undo_stack.push(RemoveBoardItemsCommand(self, items, label))
+        return True
+
+    def bring_selected_items_to_front(self):
+        items = self._selected_board_items()
+        if not items:
+            return False
+        label = "Bring Items to Front" if len(items) > 1 else "Bring Item to Front"
+        self._undo_stack.push(BringBoardItemsToFrontCommand(self, items, label))
         return True
 
     def rotate_selected_items(self, angle_delta):

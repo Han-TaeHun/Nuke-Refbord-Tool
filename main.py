@@ -38,23 +38,29 @@ def show_panel():
 
     _ensure_plugin_path()
     try:
-        from PySide2 import QtCore
+        from PySide2 import QtCore, QtWidgets
     except ImportError:  # pragma: no cover - for newer host apps
-        from PySide6 import QtCore
+        from PySide6 import QtCore, QtWidgets
 
     from ui.panel import RefBoardPanel
 
     global _floating_panel
+    existing_panel = _find_existing_floating_panel(QtWidgets)
+    if existing_panel is not None:
+        _floating_panel = existing_panel
+        _show_existing_panel(_floating_panel)
+        return _floating_panel
+
     try:
         if _floating_panel is not None and _floating_panel.isVisible():
-            _floating_panel.raise_()
-            _floating_panel.activateWindow()
+            _show_existing_panel(_floating_panel)
             return _floating_panel
     except RuntimeError:
         _floating_panel = None
 
     _floating_panel = RefBoardPanel()
     _floating_panel.setWindowFlags(_floating_panel.windowFlags() | QtCore.Qt.Window)
+    _store_panel_reference(QtWidgets, _floating_panel)
     settings = current_settings()
     _floating_panel.resize(
         int(settings.get("default_panel_width", 1280) or 1280),
@@ -64,3 +70,31 @@ def show_panel():
     _floating_panel.raise_()
     _floating_panel.activateWindow()
     return _floating_panel
+
+
+def _find_existing_floating_panel(QtWidgets):
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        return None
+    for widget in app.topLevelWidgets():
+        try:
+            if widget.objectName() == "NukeRefBoardPanel" and widget.isVisible():
+                return widget
+        except RuntimeError:
+            continue
+    return None
+
+
+def _show_existing_panel(panel):
+    if panel.isMinimized():
+        panel.showNormal()
+    else:
+        panel.show()
+    panel.raise_()
+    panel.activateWindow()
+
+
+def _store_panel_reference(QtWidgets, panel):
+    app = QtWidgets.QApplication.instance()
+    if app is not None:
+        app._nuke_refboard_floating_panel = panel
