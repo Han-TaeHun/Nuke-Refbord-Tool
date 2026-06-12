@@ -1,1 +1,1 @@
-# UI 模块初始化 / UI package initializer.
+# UI 패키지 초기화

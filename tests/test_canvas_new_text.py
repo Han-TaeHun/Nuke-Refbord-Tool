@@ -1,4 +1,4 @@
-#New Text 行为回归测试  #New Text behavior regression tests
+# New Text 동작 회귀 테스트
 
 import os
 import unittest

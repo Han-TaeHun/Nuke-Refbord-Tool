@@ -1,4 +1,4 @@
-# 单张参考图片对象 / Interactive reference image item.
+# 인터랙티브 레퍼런스 이미지 아이템
 import math
 
 try:

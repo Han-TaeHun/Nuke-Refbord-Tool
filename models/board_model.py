@@ -1,4 +1,4 @@
-# 画布状态数据模型 / Board viewport state data model.
+# 보드 뷰포트 상태 데이터 모델
 from dataclasses import dataclass
 
 

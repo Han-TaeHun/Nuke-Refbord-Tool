@@ -1,4 +1,4 @@
-# 插件启动与面板注册入口 / Plugin startup and panel registration entry point.
+# 플러그인 시작 및 패널 등록 진입점
 """Nuke RefBoard startup helpers."""
 
 from .refboard_core.constants import PANEL_ID, PLUGIN_NAME

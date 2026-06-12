@@ -1,4 +1,4 @@
-# 图片资产导入器 / Image asset importer for board resources.
+# 이미지 에셋 임포터
 import os
 import shutil
 from uuid import uuid4

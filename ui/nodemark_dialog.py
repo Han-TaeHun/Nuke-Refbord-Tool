@@ -1,4 +1,4 @@
-# NodeMark 选择对话框 / NodeMark selection dialog.
+# NodeMark 선택 다이얼로그
 try:
     from PySide2 import QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps

@@ -1,4 +1,4 @@
-# 会话级运行时设置 / Session-scoped runtime settings.
+# 세션 범위 런타임 설정
 import copy
 import json
 import os

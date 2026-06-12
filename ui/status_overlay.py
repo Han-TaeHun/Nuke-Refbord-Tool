@@ -1,4 +1,4 @@
-# 状态提示浮层 / Status overlay widgets.
+# 상태 알림 오버레이 위젯
 try:
     from PySide2 import QtCore, QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps

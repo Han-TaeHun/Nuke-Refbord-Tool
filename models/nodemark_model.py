@@ -1,4 +1,4 @@
-# NodeMark 链接数据模型 / NodeMark link data model.
+# NodeMark 링크 데이터 모델
 class NodeMarkModel(object):
     """Serializable data for one NodeMark hyperlink item."""
 

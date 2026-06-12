@@ -1,4 +1,4 @@
-# 单张图片数据模型 / Single reference image data model.
+# 단일 레퍼런스 이미지 데이터 모델
 from dataclasses import dataclass, field
 from uuid import uuid4
 

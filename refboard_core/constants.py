@@ -1,4 +1,4 @@
-# 全局配置与常量 / Global configuration and constants.
+# 전역 설정 및 상수
 """Project-wide constants for Nuke RefBoard."""
 
 PLUGIN_NAME = "Nuke RefBoard"

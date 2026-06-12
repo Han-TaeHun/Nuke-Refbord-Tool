@@ -1,1 +1,1 @@
-# 数据模型模块初始化 / Data model package initializer.
+# 데이터 모델 패키지 초기화

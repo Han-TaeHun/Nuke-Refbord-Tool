@@ -1,4 +1,4 @@
-# 设置界面对话框 / Preferences-style settings dialog.
+# 환경설정 다이얼로그
 try:
     from PySide2 import QtCore, QtGui, QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps

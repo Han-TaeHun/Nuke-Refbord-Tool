@@ -1,4 +1,4 @@
-# 运行时文件与临时目录管理 / Runtime file and temp directory manager.
+# 런타임 파일 및 임시 디렉토리 관리
 import os
 import shutil
 

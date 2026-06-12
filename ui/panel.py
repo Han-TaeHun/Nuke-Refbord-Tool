@@ -1,4 +1,4 @@
-# 主界面控制器 / Main dockable reference board panel controller.
+# 메인 도킹 가능 레퍼런스 보드 패널 컨트롤러
 import os
 import re
 

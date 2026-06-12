@@ -1,4 +1,4 @@
-# .refboard 文件读写系统 / .refboard save and load serializer.
+# .refboard 파일 저장·불러오기 시리얼라이저
 import json
 import os
 import shutil

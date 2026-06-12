@@ -1,4 +1,4 @@
-# 核心无限画布系统 / Core infinite-canvas reference board view.
+# 무한 캔버스 레퍼런스 보드 뷰
 import os
 import urllib.parse
 import urllib.request

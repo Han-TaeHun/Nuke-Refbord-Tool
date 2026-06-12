@@ -1,4 +1,4 @@
-# UI 颜色与 QSS 样式 / UI colors and QSS stylesheet.
+# UI 색상 및 QSS 스타일시트
 BACKGROUND = "#202124"
 CANVAS_BACKGROUND = "#17181a"
 PANEL_BORDER = "#323438"

@@ -1,4 +1,4 @@
-# 文字注释图元 / Editable text annotation graphics item.
+# 편집 가능한 텍스트 노트 아이템
 import math
 
 try:

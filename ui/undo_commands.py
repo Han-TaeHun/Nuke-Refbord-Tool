@@ -1,4 +1,4 @@
-# 画板撤销命令 / Board undo command helpers.
+# 보드 실행취소 커맨드
 try:
     from PySide2 import QtWidgets
 except ImportError:  # pragma: no cover - for newer host apps

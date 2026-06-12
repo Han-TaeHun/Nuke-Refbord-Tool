@@ -1,4 +1,4 @@
-# 文字注释数据模型 / Text note annotation data model.
+# 텍스트 노트 데이터 모델
 from dataclasses import dataclass, field
 from uuid import uuid4
 

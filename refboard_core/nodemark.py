@@ -1,4 +1,4 @@
-# NodeMark 节点创建与跳转辅助 / NodeMark backdrop creation and jump helpers.
+# NodeMark 백드롭 생성 및 점프 헬퍼
 import re
 
 from .constants import (

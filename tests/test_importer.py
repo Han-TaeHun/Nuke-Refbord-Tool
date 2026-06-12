@@ -1,1 +1,1 @@
-# 图片导入器测试 / Tests for image asset importing.
+# 이미지 에셋 임포터 테스트

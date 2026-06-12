@@ -1,4 +1,4 @@
-# 帧跳转链接数据模型 / Frame jump hyperlink data model.
+# 프레임 점프 하이퍼링크 데이터 모델
 class FrameJumpModel(object):
     """Serializable data for one frame-jump hyperlink item."""
 
