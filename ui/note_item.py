@@ -6,7 +6,7 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
-from models.note_model import NoteModel
+from ..models.note_model import NoteModel
 
 
 class RefNoteItem(QtWidgets.QGraphicsTextItem):

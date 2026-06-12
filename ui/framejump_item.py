@@ -9,7 +9,7 @@ try:
 except ImportError:  # pragma: no cover - allows local UI testing outside Nuke
     nuke = None
 
-from models.framejump_model import FrameJumpModel
+from ..models.framejump_model import FrameJumpModel
 
 
 class RefFrameJumpItem(QtWidgets.QGraphicsTextItem):

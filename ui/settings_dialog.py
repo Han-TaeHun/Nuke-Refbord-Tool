@@ -4,10 +4,10 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
-from refboard_core.constants import PLUGIN_NAME, PLUGIN_VERSION
-from refboard_core.file_manager import FileManager
-from session_state import current_settings, default_settings, reset_settings
-from ui.styles import PANEL_STYLE
+from ..refboard_core.constants import PLUGIN_NAME, PLUGIN_VERSION
+from ..refboard_core.file_manager import FileManager
+from ..session_state import current_settings, default_settings, reset_settings
+from .styles import PANEL_STYLE
 
 
 class RefBoardSettingsDialog(QtWidgets.QDialog):

@@ -14,15 +14,15 @@ try:
 except ImportError:  # pragma: no cover - allows local UI testing outside Nuke
     nuke = None
 
-from refboard_core.file_manager import FileManager
-from refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
-from refboard_core.nodemark import list_nodemark_backdrops
-from ui.framejump_item import RefFrameJumpItem
-from ui.image_item import RefImageItem
-from ui.nodemark_dialog import AddNodeMarkDialog
-from ui.nodemark_item import RefNodeMarkItem
-from ui.note_item import RefNoteItem
-from ui.undo_commands import (
+from ..refboard_core.file_manager import FileManager
+from ..refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
+from ..refboard_core.nodemark import list_nodemark_backdrops
+from .framejump_item import RefFrameJumpItem
+from .image_item import RefImageItem
+from .nodemark_dialog import AddNodeMarkDialog
+from .nodemark_item import RefNodeMarkItem
+from .note_item import RefNoteItem
+from .undo_commands import (
     AddBoardItemCommand,
     BringBoardItemsToFrontCommand,
     ItemStateChangeCommand,
@@ -153,7 +153,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         center = self.mapToScene(self.viewport().rect().center())
         transform = self.transform()
         zoom = float(transform.m11()) if transform.m11() else 1.0
-        from models.board_model import BoardModel
+        from ..models.board_model import BoardModel
 
         return BoardModel(
             zoom=zoom,

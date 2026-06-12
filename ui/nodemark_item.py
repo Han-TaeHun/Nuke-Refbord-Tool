@@ -4,7 +4,7 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
-from models.nodemark_model import NodeMarkModel
+from ..models.nodemark_model import NodeMarkModel
 
 
 class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
@@ -95,7 +95,7 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         event.accept()
 
     def _jump_to_backdrop(self):
-        from refboard_core.nodemark import jump_to_nodemark
+        from ..refboard_core.nodemark import jump_to_nodemark
 
         if jump_to_nodemark(self.backdrop_name):
             return

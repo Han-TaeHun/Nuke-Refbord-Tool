@@ -6,7 +6,7 @@ try:
 except ImportError:  # pragma: no cover - for newer host apps
     from PySide6 import QtCore, QtGui, QtWidgets
 
-from models.image_model import ImageModel
+from ..models.image_model import ImageModel
 
 
 class RefImageItem(QtWidgets.QGraphicsPixmapItem):

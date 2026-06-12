@@ -1,26 +1,16 @@
 # 插件启动与面板注册入口 / Plugin startup and panel registration entry point.
 """Nuke RefBoard startup helpers."""
 
-import os
-import sys
-
-from refboard_core.constants import PANEL_ID, PLUGIN_NAME
-from session_state import current_settings
+from .refboard_core.constants import PANEL_ID, PLUGIN_NAME
+from .session_state import current_settings
 
 
 _floating_panel = None
 
 
-def _ensure_plugin_path():
-    plugin_dir = os.path.dirname(os.path.abspath(__file__))
-    if plugin_dir not in sys.path:
-        sys.path.insert(0, plugin_dir)
-
-
 def register_panel():
     """Register the dockable Nuke panel."""
 
-    _ensure_plugin_path()
     try:
         import nukescripts
     except ImportError:
@@ -36,13 +26,12 @@ def register_panel():
 def show_panel():
     """Open the panel from a menu command or Python console."""
 
-    _ensure_plugin_path()
     try:
         from PySide2 import QtCore, QtWidgets
     except ImportError:  # pragma: no cover - for newer host apps
         from PySide6 import QtCore, QtWidgets
 
-    from ui.panel import RefBoardPanel
+    from .ui.panel import RefBoardPanel
 
     global _floating_panel
     existing_panel = _find_existing_floating_panel(QtWidgets)

@@ -5,12 +5,12 @@ import shutil
 import tempfile
 import zipfile
 
-from models.board_model import BoardModel
-from models.framejump_model import FrameJumpModel
-from models.image_model import ImageModel
-from models.nodemark_model import NodeMarkModel
-from models.note_model import NoteModel
-from refboard_core.constants import ASSETS_DIRNAME, FORMAT_VERSION, MANIFEST_NAME
+from ..models.board_model import BoardModel
+from ..models.framejump_model import FrameJumpModel
+from ..models.image_model import ImageModel
+from ..models.nodemark_model import NodeMarkModel
+from ..models.note_model import NoteModel
+from .constants import ASSETS_DIRNAME, FORMAT_VERSION, MANIFEST_NAME
 
 
 class RefBoardSerializer:

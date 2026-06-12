@@ -12,14 +12,14 @@ try:
 except ImportError:  # pragma: no cover - allows local UI testing outside Nuke
     nuke = None
 
-from refboard_core.constants import FILE_EXTENSION, PLUGIN_NAME
-from refboard_core.file_manager import FileManager
-from refboard_core.serializer import RefBoardSerializer
-from session_state import current_settings, update_settings
-from ui.canvas_view import RefCanvasView
-from ui.settings_dialog import RefBoardSettingsDialog
-from ui.status_overlay import RefBoardLoadingOverlay, RefBoardSaveToast
-from ui.styles import PANEL_STYLE
+from ..refboard_core.constants import FILE_EXTENSION, PLUGIN_NAME
+from ..refboard_core.file_manager import FileManager
+from ..refboard_core.serializer import RefBoardSerializer
+from ..session_state import current_settings, update_settings
+from .canvas_view import RefCanvasView
+from .settings_dialog import RefBoardSettingsDialog
+from .status_overlay import RefBoardLoadingOverlay, RefBoardSaveToast
+from .styles import PANEL_STYLE
 
 
 class RefBoardPanel(QtWidgets.QWidget):

@@ -1,12 +1,12 @@
 # NodeMark 节点创建与跳转辅助 / NodeMark backdrop creation and jump helpers.
 import re
 
-from refboard_core.constants import (
+from .constants import (
     NODEMARK_BACKDROP_COLOR,
     NODEMARK_DEFAULT_LABEL,
     NODEMARK_PREFIX,
 )
-from session_state import current_settings
+from ..session_state import current_settings
 
 
 def create_nodemark_from_selection():

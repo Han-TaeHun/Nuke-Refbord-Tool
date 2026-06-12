@@ -3,7 +3,7 @@ import os
 import shutil
 from uuid import uuid4
 
-from refboard_core.constants import SUPPORTED_IMAGE_EXTENSIONS
+from .constants import SUPPORTED_IMAGE_EXTENSIONS
 
 
 class AssetImporter:
