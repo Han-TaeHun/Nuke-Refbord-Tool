@@ -16,9 +16,9 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     settingsApplied = QtCore.Signal(dict)
 
     def __init__(self, parent=None):
-        super(RefBoardSettingsDialog, self).__init__(parent)
+        super().__init__(parent)
         self.setObjectName("RefBoardSettingsDialog")
-        self.setWindowTitle("Preferences - General")
+        self.setWindowTitle("환경설정 - 일반")
         self.setModal(True)
         self.resize(1160, 820)
         self.setStyleSheet(PANEL_STYLE)
@@ -58,7 +58,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(12)
 
-        self._page_title = QtWidgets.QLabel("General", self._right_panel)
+        self._page_title = QtWidgets.QLabel("일반", self._right_panel)
         self._page_title.setObjectName("RefBoardSettingsPageTitle")
         right_layout.addWidget(self._page_title)
 
@@ -72,14 +72,14 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
 
         footer_layout = QtWidgets.QHBoxLayout()
         footer_layout.setContentsMargins(0, 0, 0, 0)
-        self._reset_button = QtWidgets.QPushButton("Reset", self)
+        self._reset_button = QtWidgets.QPushButton("초기화", self)
         self._reset_button.clicked.connect(self._reset_placeholder)
         footer_layout.addWidget(self._reset_button)
         footer_layout.addStretch(1)
 
-        self._save_button = QtWidgets.QPushButton("Save", self)
-        self._apply_button = QtWidgets.QPushButton("Apply", self)
-        self._cancel_button = QtWidgets.QPushButton("Cancel", self)
+        self._save_button = QtWidgets.QPushButton("저장", self)
+        self._apply_button = QtWidgets.QPushButton("적용", self)
+        self._cancel_button = QtWidgets.QPushButton("취소", self)
         self._save_button.clicked.connect(self._save_and_close)
         self._apply_button.clicked.connect(self._apply_current_settings)
         self._cancel_button.clicked.connect(self.reject)
@@ -90,12 +90,12 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
 
     def _populate_categories(self):
         pages = [
-            ("Autosave", None, self._build_autosave_page()),
-            ("Paths / Storage", None, self._build_storage_page()),
-            ("Canvas", None, self._build_canvas_page()),
-            ("Text / Notes", None, self._build_text_notes_page()),
+            ("자동 저장", None, self._build_autosave_page()),
+            ("경로 / 저장소", None, self._build_storage_page()),
+            ("캔버스", None, self._build_canvas_page()),
+            ("텍스트 / 노트", None, self._build_text_notes_page()),
             ("NodeMark", None, self._build_nodemark_page()),
-            ("About", None, self._build_about_page()),
+            ("정보", None, self._build_about_page()),
         ]
 
         for title, parent_title, widget in pages:
@@ -125,7 +125,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         if page_index is None:
             return
         self._page_title.setText(current.text(0))
-        self.setWindowTitle("Preferences - {0}".format(current.text(0)))
+        self.setWindowTitle("환경설정 - {0}".format(current.text(0)))
         self._stack.setCurrentIndex(int(page_index))
 
     def _build_autosave_page(self):
@@ -134,13 +134,13 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         self._autosave_enable_checkbox = self._checkbox_only(True)
         self._autosave_force_spinbox = self._spin_box(10, suffix=" min")
 
-        layout.addWidget(self._kv_row("Enable autosave", self._autosave_enable_checkbox))
-        layout.addWidget(self._kv_row("Autosave interval", self._autosave_force_spinbox))
+        layout.addWidget(self._kv_row("자동 저장 활성화", self._autosave_enable_checkbox))
+        layout.addWidget(self._kv_row("자동 저장 간격", self._autosave_force_spinbox))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
-                "This page is reserved for autosave behavior only.\n"
-                "The real save timer, idle detection, and forced interval logic can be connected later."
+                "이 페이지는 자동 저장 동작 전용입니다.\n"
+                "실제 저장 타이머, 유휴 감지, 강제 간격 로직은 추후 연결될 예정입니다."
             )
         )
         self._autosave_enable_checkbox.toggled.connect(self._update_autosave_controls_state)
@@ -152,17 +152,17 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         page = self._page_container()
         layout = page.layout()
         self._custom_cache_checkbox = self._checkbox_only(False)
-        self._cache_path_picker = self._path_picker("Choose cache directory...", "Select Folder")
+        self._cache_path_picker = self._path_picker("캐시 경로 선택...", "폴더 선택")
         self._clean_cache_checkbox = self._checkbox_only(True)
 
-        layout.addWidget(self._kv_row("Use custom cache directory", self._custom_cache_checkbox))
-        layout.addWidget(self._kv_row("Cache directory", self._cache_path_picker))
-        layout.addWidget(self._kv_row("Clean cache on exit", self._clean_cache_checkbox))
+        layout.addWidget(self._kv_row("사용자 지정 캐시 경로 사용", self._custom_cache_checkbox))
+        layout.addWidget(self._kv_row("캐시 경로", self._cache_path_picker))
+        layout.addWidget(self._kv_row("종료 시 캐시 정리", self._clean_cache_checkbox))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
-                "This page will later manage runtime storage, extracted .refboard assets, "
-                "and any custom temp folder chosen from the settings window."
+                "이 페이지는 런타임 저장소, 추출된 .refboard 에셋, "
+                "설정 창에서 선택한 임시 폴더를 관리합니다."
             )
         )
         self._custom_cache_checkbox.toggled.connect(self._update_cache_path_controls_state)
@@ -177,15 +177,15 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         self._panel_width_spinbox = self._spin_box(1280, suffix=" px")
         self._panel_height_spinbox = self._spin_box(720, suffix=" px")
         self._debug_mode_checkbox = self._checkbox_only(False)
-        layout.addWidget(self._kv_row("Maximum undo steps", self._undo_steps_spinbox))
-        layout.addWidget(self._kv_row("Default panel width", self._panel_width_spinbox))
-        layout.addWidget(self._kv_row("Default panel height", self._panel_height_spinbox))
-        layout.addWidget(self._kv_row("Debug mode", self._debug_mode_checkbox))
+        layout.addWidget(self._kv_row("최대 실행 취소 횟수", self._undo_steps_spinbox))
+        layout.addWidget(self._kv_row("기본 패널 너비", self._panel_width_spinbox))
+        layout.addWidget(self._kv_row("기본 패널 높이", self._panel_height_spinbox))
+        layout.addWidget(self._kv_row("디버그 모드", self._debug_mode_checkbox))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
-                "Canvas settings placeholder.\n"
-                "This page can later control startup canvas behavior, stacking rules, and window defaults."
+                "캔버스 설정 페이지입니다.\n"
+                "시작 시 캔버스 동작, 레이어 규칙, 창 기본값 등을 조정할 수 있습니다."
             )
         )
         layout.addStretch(1)
@@ -201,18 +201,18 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         self._default_transparent_background_checkbox = self._checkbox_only(False)
         self._auto_enter_edit_checkbox = self._checkbox_only(True)
         self._continue_checklist_checkbox = self._checkbox_only(True)
-        layout.addWidget(self._kv_row("Default font", self._default_font_combo))
-        layout.addWidget(self._kv_row("Default font size", self._default_font_size_spinbox))
-        layout.addWidget(self._kv_row("Default text color", self._default_text_color_picker))
-        layout.addWidget(self._kv_row("Default text background", self._default_text_background_picker))
-        layout.addWidget(self._kv_row("Default transparent background", self._default_transparent_background_checkbox))
-        layout.addWidget(self._kv_row("Auto-enter edit mode for new text", self._auto_enter_edit_checkbox))
-        layout.addWidget(self._kv_row("Continue checklist on new line", self._continue_checklist_checkbox))
+        layout.addWidget(self._kv_row("기본 폰트", self._default_font_combo))
+        layout.addWidget(self._kv_row("기본 폰트 크기", self._default_font_size_spinbox))
+        layout.addWidget(self._kv_row("기본 텍스트 색상", self._default_text_color_picker))
+        layout.addWidget(self._kv_row("기본 텍스트 배경", self._default_text_background_picker))
+        layout.addWidget(self._kv_row("기본 투명 배경", self._default_transparent_background_checkbox))
+        layout.addWidget(self._kv_row("새 텍스트 자동 편집 모드", self._auto_enter_edit_checkbox))
+        layout.addWidget(self._kv_row("새 줄에서 체크리스트 계속", self._continue_checklist_checkbox))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
-                "Text and note defaults placeholder.\n"
-                "This page is prepared for note style, checklist behavior, and new-text interaction defaults."
+                "텍스트 및 노트 기본값 설정 페이지입니다.\n"
+                "노트 스타일, 체크리스트 동작, 새 텍스트 입력 기본값을 조정할 수 있습니다."
             )
         )
         layout.addStretch(1)
@@ -221,27 +221,27 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
     def _build_nodemark_page(self):
         page = self._page_container()
         layout = page.layout()
-        self._nodemark_link_style_combo = self._combo(["Hyperlink text", "Pill button"])
-        self._nodemark_missing_behavior_combo = self._combo(["Show warning", "Do nothing"])
+        self._nodemark_link_style_combo = self._combo(["하이퍼링크 텍스트", "알약형 버튼"])
+        self._nodemark_missing_behavior_combo = self._combo(["경고 표시", "무시"])
         self._nodemark_backdrop_color_picker = self._color_picker("#2F4F6F")
         layout.addWidget(
             self._kv_row(
-                "Default NodeMark link style",
+                "기본 NodeMark 링크 스타일",
                 self._nodemark_link_style_combo,
             )
         )
         layout.addWidget(
             self._kv_row(
-                "Missing backdrop behavior",
+                "배경 노드 없음 시 동작",
                 self._nodemark_missing_behavior_combo,
             )
         )
-        layout.addWidget(self._kv_row("Default backdrop color", self._nodemark_backdrop_color_picker))
+        layout.addWidget(self._kv_row("기본 배경 노드 색상", self._nodemark_backdrop_color_picker))
         layout.addSpacing(10)
         layout.addWidget(
             self._placeholder_box(
-                "NodeMark settings placeholder.\n"
-                "This page is ready for jump-link behavior, target fallback rules, and default backdrop appearance."
+                "NodeMark 설정 페이지입니다.\n"
+                "점프 링크 동작, 대상 폴백 규칙, 기본 Backdrop 외관을 조정할 수 있습니다."
             )
         )
         layout.addStretch(1)
@@ -251,42 +251,42 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         page = self._page_container()
         layout = page.layout()
         layout.addWidget(self._about_title(PLUGIN_NAME))
-        layout.addWidget(self._about_version("Version {0}".format(PLUGIN_VERSION)))
+        layout.addWidget(self._about_version("버전 {0}".format(PLUGIN_VERSION)))
         layout.addSpacing(8)
         layout.addWidget(
             self._about_body(
-                "Reference images, notes, checklists, NodeMarks, and frame jumps inside Nuke.\n\n"
-                "Preview release for workflow testing.\n"
-                "This tool is designed for shot-side reference and notes. It is not intended to replace PureRef."
+                "Nuke 내에서 레퍼런스 이미지, 노트, 체크리스트, NodeMark, 프레임 점프를 관리하는 툴입니다.\n\n"
+                "워크플로 테스트용 프리뷰 릴리즈입니다.\n"
+                "이 툴은 샷 레퍼런스 및 노트 용도로 설계되었습니다. PureRef를 대체하는 것이 목적이 아닙니다."
             )
         )
         layout.addSpacing(10)
-        layout.addWidget(self._section_title("Current feature set"))
+        layout.addWidget(self._section_title("현재 기능"))
         layout.addWidget(
             self._about_body(
-                "Images\n"
-                "Text notes\n"
-                "Checklists\n"
-                "NodeMark links\n"
-                "Frame jump links\n"
-                ".refboard save / load / switch"
+                "이미지\n"
+                "텍스트 노트\n"
+                "체크리스트\n"
+                "NodeMark 링크\n"
+                "프레임 점프 링크\n"
+                ".refboard 저장 / 불러오기 / 전환"
             )
         )
         layout.addSpacing(10)
-        layout.addWidget(self._section_title("Storage"))
+        layout.addWidget(self._section_title("저장소"))
         layout.addWidget(
             self._about_body(
-                "Boards are saved as .refboard files.\n"
-                "New boards are saved next to the current Nuke script."
+                "보드는 .refboard 파일로 저장됩니다.\n"
+                "새 보드는 현재 Nuke 스크립트 옆에 저장됩니다."
             )
         )
         layout.addSpacing(10)
-        layout.addWidget(self._section_title("Build"))
+        layout.addWidget(self._section_title("빌드 정보"))
         layout.addWidget(
             self._about_body(
-                "Created by: Simon.Ming.\n"
-                "Bug reports: simon.workshop@outlook.com\n"
-                "== Pre-release build for testing ==."
+                "제작: Simon.Ming.\n"
+                "버그 리포트: simon.workshop@outlook.com\n"
+                "== 테스트용 프리릴리즈 빌드 =="
             )
         )
         layout.addStretch(1)
@@ -474,7 +474,7 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
 
     def _pick_directory(self, line_edit):
         current = line_edit.text().strip()
-        path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Folder", current or "")
+        path = QtWidgets.QFileDialog.getExistingDirectory(self, "폴더 선택", current or "")
         if not path:
             return
         line_edit.setText(path)
@@ -507,10 +507,10 @@ class RefBoardSettingsDialog(QtWidgets.QDialog):
         )
         self._auto_enter_edit_checkbox.setChecked(bool(settings.get("auto_enter_edit_mode_for_new_text", True)))
         self._continue_checklist_checkbox.setChecked(bool(settings.get("continue_checklist_on_new_line", True)))
-        self._set_combo_text(self._nodemark_link_style_combo, settings.get("nodemark_link_style", "Hyperlink text"))
+        self._set_combo_text(self._nodemark_link_style_combo, settings.get("nodemark_link_style", "하이퍼링크 텍스트"))
         self._set_combo_text(
             self._nodemark_missing_behavior_combo,
-            settings.get("nodemark_missing_behavior", "Show warning"),
+            settings.get("nodemark_missing_behavior", "경고 표시"),
         )
         self._set_color_picker_value(
             self._nodemark_backdrop_color_picker,

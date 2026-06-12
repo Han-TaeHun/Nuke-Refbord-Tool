@@ -22,8 +22,8 @@ DEFAULT_SETTINGS = {
     "default_note_transparent_background": False,
     "auto_enter_edit_mode_for_new_text": True,
     "continue_checklist_on_new_line": True,
-    "nodemark_link_style": "Hyperlink text",
-    "nodemark_missing_behavior": "Show warning",
+    "nodemark_link_style": "하이퍼링크 텍스트",
+    "nodemark_missing_behavior": "경고 표시",
     "nodemark_backdrop_color": "#2F4F6F",
 }
 

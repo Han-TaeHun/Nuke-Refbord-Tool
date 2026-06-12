@@ -9,7 +9,7 @@ class RefBoardLoadingOverlay(QtWidgets.QFrame):
     """Frameless centered loading placeholder overlay for the RefBoard panel."""
 
     def __init__(self, parent=None):
-        super(RefBoardLoadingOverlay, self).__init__(parent)
+        super().__init__(parent)
         self.setObjectName("RefBoardLoadingOverlay")
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)
@@ -50,7 +50,7 @@ class RefBoardSaveToast(QtWidgets.QFrame):
     """Small bottom-left toast placeholder for save feedback."""
 
     def __init__(self, parent=None):
-        super(RefBoardSaveToast, self).__init__(parent)
+        super().__init__(parent)
         self.setObjectName("RefBoardSaveToast")
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)

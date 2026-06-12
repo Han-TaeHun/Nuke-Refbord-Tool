@@ -14,7 +14,7 @@ class FileManager:
 
     @classmethod
     def default_runtime_root(cls) -> str:
-        return str(Path(__file__).parent.parent / "temp")
+        return str(Path.home() / ".ref_board")
 
     @classmethod
     def configure_runtime_root(cls, runtime_root=None):

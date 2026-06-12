@@ -9,7 +9,7 @@ class AddNodeMarkDialog(QtWidgets.QDialog):
     """Dialog for selecting a NodeMark and optionally renaming its link label."""
 
     def __init__(self, nodemarks, parent=None):
-        super(AddNodeMarkDialog, self).__init__(parent)
+        super().__init__(parent)
         self._nodemarks = list(nodemarks or [])
         self.setWindowTitle("Add NodeMark")
         self.setModal(True)

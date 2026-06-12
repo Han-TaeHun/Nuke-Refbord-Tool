@@ -14,12 +14,12 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
     PILL_PADDING_Y = 4.0
 
     def __init__(self, backdrop_name, label, parent=None):
-        super(RefNodeMarkItem, self).__init__(parent)
+        super().__init__(parent)
         self.refboard_item_type = "nodemark"
         self.backdrop_name = backdrop_name
         self.label = label
-        self._link_style = "Hyperlink text"
-        self._missing_behavior = "Show warning"
+        self._link_style = "하이퍼링크 텍스트"
+        self._missing_behavior = "경고 표시"
         self._hovered = False
         self._interaction_start_state = None
         self.on_state_changed = None
@@ -41,7 +41,7 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         self.apply_display_settings()
 
     def boundingRect(self):
-        rect = super(RefNodeMarkItem, self).boundingRect()
+        rect = super().boundingRect()
         if self._is_pill_style():
             return rect.adjusted(
                 -self.PILL_PADDING_X,
@@ -62,11 +62,11 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
         self._pressed = True
         self._press_pos = event.pos()
         self._press_scene_pos = event.scenePos()
-        super(RefNodeMarkItem, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         moved = (event.scenePos() - self._press_scene_pos).manhattanLength() > 6.0
-        super(RefNodeMarkItem, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
         if self._pressed and not moved and event.button() == QtCore.Qt.LeftButton:
             self._jump_to_backdrop()
         self._pressed = False
@@ -76,12 +76,12 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
     def hoverEnterEvent(self, event):
         self._hovered = True
         self._refresh_style()
-        super(RefNodeMarkItem, self).hoverEnterEvent(event)
+        super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self._hovered = False
         self._refresh_style()
-        super(RefNodeMarkItem, self).hoverLeaveEvent(event)
+        super().hoverLeaveEvent(event)
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu()
@@ -99,12 +99,12 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
 
         if jump_to_nodemark(self.backdrop_name):
             return
-        if self._missing_behavior == "Show warning":
+        if self._missing_behavior == "경고 표시":
             QtWidgets.QMessageBox.information(
                 None,
-                "NodeMark Missing",
-                "This NodeMark backdrop could not be found in the current script.\n\n"
-                "It may have been deleted, renamed, or the board may belong to another Nuke script.",
+                "NodeMark 없음",
+                "현재 스크립트에서 이 NodeMark Backdrop을 찾을 수 없습니다.\n\n"
+                "삭제되었거나 이름이 변경되었거나, 다른 Nuke 스크립트의 보드일 수 있습니다.",
             )
 
     def to_model(self):
@@ -170,10 +170,10 @@ class RefNodeMarkItem(QtWidgets.QGraphicsTextItem):
             painter.setBrush(fill)
             painter.drawRoundedRect(rect, 8.0, 8.0)
             painter.restore()
-        super(RefNodeMarkItem, self).paint(painter, option, widget)
+        super().paint(painter, option, widget)
 
     def _is_pill_style(self):
-        return self._link_style == "Pill button"
+        return self._link_style == "알약형 버튼"
 
     def _refresh_style(self):
         font = QtGui.QFont(self.font())

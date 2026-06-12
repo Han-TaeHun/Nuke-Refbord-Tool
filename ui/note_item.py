@@ -23,7 +23,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
     HANDLE_MARGIN = 10.0
 
     def __init__(self, text="Text", note_id=None, parent=None):
-        super(RefNoteItem, self).__init__(text, parent)
+        super().__init__(text, parent)
         self.refboard_item_type = "note"
         self.note_id = note_id
         self._interaction_start_state = None
@@ -60,7 +60,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         return rect.adjusted(-handle_margin, -handle_margin, handle_margin, handle_margin)
 
     def text_bounding_rect(self):
-        rect = super(RefNoteItem, self).boundingRect()
+        rect = super().boundingRect()
         rect = rect.united(QtCore.QRectF(0.0, 0.0, self.MIN_WIDTH, self.MIN_HEIGHT))
         return rect.adjusted(
             -self.FRAME_PADDING_X,
@@ -104,14 +104,14 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             self._begin_scale(event.pos())
             event.accept()
             return
-        super(RefNoteItem, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self._scaling:
             self._update_scale(event.pos())
             event.accept()
             return
-        super(RefNoteItem, self).mouseMoveEvent(event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self._scaling:
@@ -119,7 +119,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             self._notify_state_change()
             event.accept()
             return
-        super(RefNoteItem, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
         if event.button() == QtCore.Qt.LeftButton:
             self._notify_state_change()
 
@@ -128,14 +128,14 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             self.setCursor(QtCore.Qt.SizeFDiagCursor)
             return
         self.unsetCursor()
-        super(RefNoteItem, self).hoverMoveEvent(event)
+        super().hoverMoveEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.unsetCursor()
-        super(RefNoteItem, self).hoverLeaveEvent(event)
+        super().hoverLeaveEvent(event)
 
     def focusOutEvent(self, event):
-        super(RefNoteItem, self).focusOutEvent(event)
+        super().focusOutEvent(event)
         self._editing = False
         self.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
         self.update()
@@ -151,7 +151,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
             and event.key() in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter)
             and self._current_block_is_checklist()
         )
-        super(RefNoteItem, self).keyPressEvent(event)
+        super().keyPressEvent(event)
         if insert_checklist_prefix:
             self.textCursor().insertText(self.CHECKBOX_UNCHECKED)
             cursor = self.textCursor()
@@ -163,7 +163,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
         self.update()
 
     def inputMethodEvent(self, event):
-        super(RefNoteItem, self).inputMethodEvent(event)
+        super().inputMethodEvent(event)
         self._configure_text_layout()
         self._update_transform_origin()
         self.update()
@@ -182,7 +182,7 @@ class RefNoteItem(QtWidgets.QGraphicsTextItem):
                 for handle_rect in self._handle_rects().values():
                     painter.drawRect(handle_rect)
             painter.restore()
-        super(RefNoteItem, self).paint(painter, option, widget)
+        super().paint(painter, option, widget)
         self._paint_checklist_overlays(painter)
 
     def apply_text_format(

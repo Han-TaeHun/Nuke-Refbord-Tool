@@ -1,9 +1,9 @@
-# UI 색상 및 QSS 스타일시트
+# UI 색상 및 QSS 스타일시트 (노랑/회색 톤앤매너)
 BACKGROUND = "#202124"
 CANVAS_BACKGROUND = "#17181a"
 PANEL_BORDER = "#323438"
 TEXT = "#e7e7e7"
-ACCENT = "#4c9aff"
+ACCENT = "#f2cb58"
 
 
 PANEL_STYLE = """
@@ -21,7 +21,7 @@ QToolBar {
 QFrame#RefBoardToolbarPlaceholder {
     background: #25272b;
     border: 0;
-    border-bottom: 1px solid #323438;
+    border-bottom: 1px solid #3a3a3a;
 }
 QFrame#RefBoardToolbarSeparator {
     background: #3b3e45;
@@ -54,8 +54,8 @@ QFrame#RefBoardLoadingOverlay {
     border-radius: 12px;
 }
 QFrame#RefBoardSaveToast {
-    background: rgba(27, 42, 33, 235);
-    border: 1px solid #42634c;
+    background: rgba(40, 36, 18, 235);
+    border: 1px solid #7a6a1a;
     border-radius: 10px;
 }
 QFrame#RefBoardSaveToast[toastVariant="error"] {
@@ -75,7 +75,7 @@ QLabel#RefBoardLoadingBody {
     font-size: 12px;
 }
 QLabel#RefBoardSaveToastText {
-    color: #d8f2de;
+    color: #f2cb58;
     background: transparent;
     font-size: 12px;
     font-weight: 600;
@@ -84,26 +84,65 @@ QLabel#RefBoardSaveToastText[toastVariant="error"] {
     color: #ffd9da;
 }
 QToolButton, QPushButton {
-    background: #303238;
-    border: 1px solid #3d4047;
+    background: #4d4d4d;
+    border: 1px solid #2e2e2e;
     border-radius: 4px;
     padding: 5px 9px;
+    color: #dddddd;
 }
 QToolButton:hover, QPushButton:hover {
-    background: #3a3d45;
+    background: #5d5d5d;
+    border: 1px solid #666666;
+    color: #ffffff;
 }
 QToolButton:checked {
-    background: #4c9aff;
-    color: #101114;
+    background: #3a3a3a;
+    color: #dddddd;
+    border: 1px solid #555555;
 }
 QToolButton:pressed, QPushButton:pressed {
-    background: #4c9aff;
-    color: #101114;
+    background: #3a3a3a;
+    color: #dddddd;
 }
 QPushButton:disabled, QToolButton:disabled {
-    background: #232529;
-    border: 1px solid #30333a;
-    color: #7b8088;
+    background: #3a3a3a;
+    border: 1px solid #2a2a2a;
+    color: #666666;
+}
+QToolButton#RefBoardPinButton {
+    background: #4d4d4d;
+    border: 1px solid #2e2e2e;
+    border-radius: 4px;
+    padding: 4px 10px;
+    color: #aaaaaa;
+    font-weight: 500;
+}
+QToolButton#RefBoardPinButton:hover {
+    background: #5d5d5d;
+    border: 1px solid #777777;
+    color: #ffffff;
+}
+QToolButton#RefBoardPinButton:checked {
+    background: #b05500;
+    border: 1px solid #d07020;
+    color: #ffffff;
+    font-weight: 700;
+}
+QToolButton#RefBoardPinButton:checked:hover {
+    background: #c06200;
+    border: 1px solid #e08030;
+}
+QLineEdit#RefBoardSearchEdit {
+    background: #383838;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    color: #dddddd;
+    padding: 2px 6px;
+    selection-background-color: #5a5a5a;
+}
+QLineEdit#RefBoardSearchEdit:focus {
+    border: 1px solid #666666;
+    background: #404040;
 }
 QMenu {
     background: #25272b;
@@ -117,6 +156,7 @@ QMenu::item {
 }
 QMenu::item:selected {
     background: #3a3d45;
+    color: #f2cb58;
 }
 QMenu::item:disabled {
     color: #4f545d;
@@ -162,8 +202,8 @@ QTreeWidget#RefBoardSettingsTree::item {
     padding-left: 8px;
 }
 QTreeWidget#RefBoardSettingsTree::item:selected {
-    background: #52d7db;
-    color: #101114;
+    background: #f2cb58;
+    color: #1a1a1a;
 }
 QTreeWidget#RefBoardSettingsTree::item:hover {
     background: #3a3d45;

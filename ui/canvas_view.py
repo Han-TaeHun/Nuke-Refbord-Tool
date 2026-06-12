@@ -38,7 +38,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     DEFAULT_TEXT_BACKGROUND = "#202124"
 
     def __init__(self, parent=None):
-        super(RefCanvasView, self).__init__(parent)
+        super().__init__(parent)
         self.setScene(QtWidgets.QGraphicsScene(self))
         self.scene().setSceneRect(-50000, -50000, 100000, 100000)
         self.setAcceptDrops(True)
@@ -71,8 +71,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._note_default_transparent_background = False
         self._auto_enter_edit_mode_for_new_text = True
         self._continue_checklist_on_new_line = True
-        self._nodemark_link_style = "Hyperlink text"
-        self._nodemark_missing_behavior = "Show warning"
+        self._nodemark_link_style = "하이퍼링크 텍스트"
+        self._nodemark_missing_behavior = "경고 표시"
         self._build_text_toolbar()
         self.scene().selectionChanged.connect(self._update_text_toolbar)
         self.horizontalScrollBar().valueChanged.connect(lambda _: self._update_text_toolbar_position())
@@ -116,6 +116,26 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             item for item in self.scene().items()
             if getattr(item, "refboard_item_type", "") in ("image", "note", "nodemark", "framejump")
         ]
+
+    def filter_items(self, query):
+        """텍스트 쿼리로 아이템 필터링. 빈 쿼리면 모두 복원."""
+        q = query.strip().lower()
+        for item in self._all_board_items():
+            if not q:
+                item.setOpacity(1.0)
+                continue
+            matched = q in self._item_search_text(item)
+            item.setOpacity(1.0 if matched else 0.15)
+
+    def _item_search_text(self, item):
+        item_type = getattr(item, "refboard_item_type", "")
+        if item_type == "note":
+            return item.toPlainText().lower()
+        if item_type in ("nodemark", "framejump"):
+            return getattr(item, "label", "").lower()
+        if item_type == "image":
+            return os.path.basename(getattr(item, "source_path", "")).lower()
+        return ""
 
     def add_note(self, scene_pos=None, text="Text"):
         if scene_pos is None:
@@ -278,8 +298,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._continue_checklist_on_new_line = bool(
             settings.get("continue_checklist_on_new_line", True)
         )
-        self._nodemark_link_style = settings.get("nodemark_link_style", "Hyperlink text")
-        self._nodemark_missing_behavior = settings.get("nodemark_missing_behavior", "Show warning")
+        self._nodemark_link_style = settings.get("nodemark_link_style", "하이퍼링크 텍스트")
+        self._nodemark_missing_behavior = settings.get("nodemark_missing_behavior", "경고 표시")
         self.DEFAULT_TEXT_COLOR = self._note_default_text_color
         self.DEFAULT_TEXT_BACKGROUND = (
             "transparent"
@@ -294,25 +314,25 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self.viewport().update()
 
     def resizeEvent(self, event):
-        super(RefCanvasView, self).resizeEvent(event)
+        super().resizeEvent(event)
         self._update_text_toolbar_position()
 
     def dragEnterEvent(self, event):
         if self._event_has_images(event):
             event.acceptProposedAction()
             return
-        super(RefCanvasView, self).dragEnterEvent(event)
+        super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
         if self._event_has_images(event):
             event.acceptProposedAction()
             return
-        super(RefCanvasView, self).dragMoveEvent(event)
+        super().dragMoveEvent(event)
 
     def dropEvent(self, event):
         paths = self._image_paths_from_mime(event.mimeData(), download_remote=True, include_image_data=True)
         if not paths:
-            super(RefCanvasView, self).dropEvent(event)
+            super().dropEvent(event)
             return
         base_pos = self.mapToScene(self._event_pos(event))
         for index, path in enumerate(paths):
@@ -320,19 +340,16 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         event.acceptProposedAction()
 
     def wheelEvent(self, event):
-        if event.modifiers() & QtCore.Qt.ControlModifier:
-            delta = event.angleDelta().y() if hasattr(event, "angleDelta") else event.delta()
-            factor = 1.15 if delta > 0 else 1.0 / 1.15
-            self.scale(factor, factor)
-            self.boardChanged.emit()
-            self._update_text_toolbar_position()
-            event.accept()
-            return
-        super(RefCanvasView, self).wheelEvent(event)
+        delta = event.angleDelta().y() if hasattr(event, "angleDelta") else event.delta()
+        factor = 1.15 if delta > 0 else 1.0 / 1.15
+        self.scale(factor, factor)
+        self.boardChanged.emit()
+        self._update_text_toolbar_position()
+        event.accept()
 
     def keyPressEvent(self, event):
         if self._text_item_is_editing():
-            super(RefCanvasView, self).keyPressEvent(event)
+            super().keyPressEvent(event)
             return
         if event.matches(QtGui.QKeySequence.Undo):
             if self.undo_last_action():
@@ -362,7 +379,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.rotate_selected_items(5.0)
             event.accept()
             return
-        super(RefCanvasView, self).keyPressEvent(event)
+        super().keyPressEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.MiddleButton or (
@@ -373,7 +390,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.setCursor(QtCore.Qt.ClosedHandCursor)
             event.accept()
             return
-        super(RefCanvasView, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self._panning:
@@ -389,7 +406,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.boardChanged.emit()
             event.accept()
             return
-        super(RefCanvasView, self).mouseMoveEvent(event)
+        super().mouseMoveEvent(event)
         self._update_text_toolbar_position()
 
     def mouseReleaseEvent(self, event):
@@ -398,22 +415,22 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             self.setCursor(QtCore.Qt.ArrowCursor)
             event.accept()
             return
-        super(RefCanvasView, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
         self._update_text_toolbar_position()
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
-        new_text_action = menu.addAction("New Text")
-        new_checklist_action = menu.addAction("New Checklist")
-        add_nodemark_action = menu.addAction("Add NodeMark")
-        add_framejump_action = menu.addAction("Add Current Frame")
+        new_text_action = menu.addAction("텍스트 추가")
+        new_checklist_action = menu.addAction("체크리스트 추가")
+        add_nodemark_action = menu.addAction("NodeMark 추가")
+        add_framejump_action = menu.addAction("현재 프레임 추가")
         menu.addSeparator()
-        copy_action = menu.addAction("Copy")
-        paste_action = menu.addAction("Paste")
-        undo_action = menu.addAction("Undo")
-        bring_to_front_action = menu.addAction("Bring to Front")
+        copy_action = menu.addAction("복사")
+        paste_action = menu.addAction("붙여넣기")
+        undo_action = menu.addAction("실행 취소")
+        bring_to_front_action = menu.addAction("앞으로 가져오기")
         menu.addSeparator()
-        settings_action = menu.addAction("Settings")
+        settings_action = menu.addAction("설정")
 
         copy_action.setEnabled(self._can_copy_selected_content())
         paste_action.setEnabled(self._can_paste_from_clipboard())
@@ -428,13 +445,13 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         hide_save_toast_action = None
         if self._debug_mode_enabled():
             menu.addSeparator()
-            debug_menu = menu.addMenu("Dev Debug Test")
-            test_loading_action = debug_menu.addAction("Test Loading Overlay")
-            hide_loading_action = debug_menu.addAction("Hide Loading Overlay")
+            debug_menu = menu.addMenu("개발 디버그 테스트")
+            test_loading_action = debug_menu.addAction("로딩 오버레이 테스트")
+            hide_loading_action = debug_menu.addAction("로딩 오버레이 숨기기")
             debug_menu.addSeparator()
-            test_save_toast_action = debug_menu.addAction("Test Save Toast")
-            test_save_error_toast_action = debug_menu.addAction("Test Save Failed Toast")
-            hide_save_toast_action = debug_menu.addAction("Hide Save Toast")
+            test_save_toast_action = debug_menu.addAction("저장 토스트 테스트")
+            test_save_error_toast_action = debug_menu.addAction("저장 실패 토스트 테스트")
+            hide_save_toast_action = debug_menu.addAction("저장 토스트 숨기기")
 
         action = menu.exec_(event.globalPos())
         if action is None:
@@ -653,7 +670,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         self._updating_text_toolbar = False
 
     def drawForeground(self, painter, rect):
-        super(RefCanvasView, self).drawForeground(painter, rect)
+        super().drawForeground(painter, rect)
         if self._all_board_items():
             return
         message = self._empty_state_message()
@@ -672,7 +689,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         panel = self.window()
         if panel is not None and hasattr(panel, "empty_state_message"):
             return panel.empty_state_message()
-        return u">>> Please drag the image here <<<"
+        return u">>>  이미지를 여기에 드래그하세요  <<<"
 
     def _pick_text_color(self, target):
         note = self.current_note_item()
@@ -1171,8 +1188,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         if not nodemarks:
             QtWidgets.QMessageBox.information(
                 self,
-                "No NodeMarks",
-                "No backdrop nodes matching the RefBoard NodeMark naming rule were found in this script.",
+                "NodeMark 없음",
+                "현재 스크립트에서 RefBoard NodeMark 명명 규칙에 맞는 Backdrop 노드를 찾을 수 없습니다.",
             )
             return
 
@@ -1200,8 +1217,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         if nuke is None:
             QtWidgets.QMessageBox.information(
                 self,
-                "Nuke Unavailable",
-                "Current-frame jump links can only be created inside Nuke.",
+                "Nuke 사용 불가",
+                "현재 프레임 점프 링크는 Nuke 내부에서만 생성할 수 있습니다.",
             )
             return
         try:
@@ -1209,8 +1226,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         except Exception:
             QtWidgets.QMessageBox.information(
                 self,
-                "Frame Unavailable",
-                "The current viewer frame could not be read.",
+                "프레임 정보 없음",
+                "현재 뷰어 프레임을 읽을 수 없습니다.",
             )
             return
-        self.add_framejump_link(frame, u"→ Frame：{0}".format(frame), scene_pos)
+        self.add_framejump_link(frame, u"→ 프레임：{0}".format(frame), scene_pos)

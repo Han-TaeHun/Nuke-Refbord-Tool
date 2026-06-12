@@ -16,7 +16,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
     ROTATE_MARGIN = 20.0
 
     def __init__(self, pixmap, source_path="", image_id=None, parent=None):
-        super(RefImageItem, self).__init__(pixmap, parent)
+        super().__init__(pixmap, parent)
         self.refboard_item_type = "image"
         self.source_path = source_path
         self.image_id = image_id
@@ -41,7 +41,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
 
     def boundingRect(self):
         margin = self.HANDLE_SIZE + self.ROTATE_MARGIN
-        return super(RefImageItem, self).boundingRect().adjusted(-margin, -margin, margin, margin)
+        return super().boundingRect().adjusted(-margin, -margin, margin, margin)
 
     def shape(self):
         path = QtGui.QPainterPath()
@@ -55,7 +55,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
             self.setScale(max(0.05, min(20.0, self.scale() * factor)))
             event.accept()
             return
-        super(RefImageItem, self).wheelEvent(event)
+        super().wheelEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -70,7 +70,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
                 self._begin_transform(event.pos(), "rotate")
                 event.accept()
                 return
-        super(RefImageItem, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self._transform_mode == "scale":
@@ -81,7 +81,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
             self._update_rotation(event.pos())
             event.accept()
             return
-        super(RefImageItem, self).mouseMoveEvent(event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self._transform_mode:
@@ -89,7 +89,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
             self._notify_state_change()
             event.accept()
             return
-        super(RefImageItem, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
         if event.button() == QtCore.Qt.LeftButton:
             self._notify_state_change()
 
@@ -102,21 +102,21 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
                 self.setCursor(QtCore.Qt.CrossCursor)
                 return
         self.unsetCursor()
-        super(RefImageItem, self).hoverMoveEvent(event)
+        super().hoverMoveEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.unsetCursor()
-        super(RefImageItem, self).hoverLeaveEvent(event)
+        super().hoverLeaveEvent(event)
 
     def paint(self, painter, option, widget=None):
-        super(RefImageItem, self).paint(painter, option, widget)
+        super().paint(painter, option, widget)
         if self.isSelected():
             painter.save()
             pen = QtGui.QPen(QtGui.QColor("#4c9aff"), 2.0)
             pen.setCosmetic(True)
             painter.setPen(pen)
             painter.setBrush(QtCore.Qt.NoBrush)
-            image_rect = super(RefImageItem, self).boundingRect()
+            image_rect = super().boundingRect()
             painter.drawRect(image_rect)
             painter.setBrush(QtGui.QColor("#202124"))
             for handle_rect in self._handle_rects().values():
@@ -144,7 +144,7 @@ class RefImageItem(QtWidgets.QGraphicsPixmapItem):
         return item
 
     def image_bounding_rect(self):
-        return super(RefImageItem, self).boundingRect()
+        return super().boundingRect()
 
     def capture_state(self):
         return {

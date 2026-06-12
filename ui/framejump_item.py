@@ -16,7 +16,7 @@ class RefFrameJumpItem(QtWidgets.QGraphicsTextItem):
     """Lightweight hyperlink-style item that jumps to a Nuke frame."""
 
     def __init__(self, frame, label, parent=None):
-        super(RefFrameJumpItem, self).__init__(parent)
+        super().__init__(parent)
         self.refboard_item_type = "framejump"
         self.frame = int(frame)
         self.label = label
@@ -46,11 +46,11 @@ class RefFrameJumpItem(QtWidgets.QGraphicsTextItem):
         self._pressed = True
         self._press_pos = event.pos()
         self._press_scene_pos = event.scenePos()
-        super(RefFrameJumpItem, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         moved = (event.scenePos() - self._press_scene_pos).manhattanLength() > 6.0
-        super(RefFrameJumpItem, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
         if self._pressed and not moved and event.button() == QtCore.Qt.LeftButton:
             self._jump_to_frame()
         self._pressed = False
@@ -59,11 +59,11 @@ class RefFrameJumpItem(QtWidgets.QGraphicsTextItem):
 
     def hoverEnterEvent(self, event):
         self.setDefaultTextColor(QtGui.QColor("#b7e3ff"))
-        super(RefFrameJumpItem, self).hoverEnterEvent(event)
+        super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.setDefaultTextColor(QtGui.QColor("#7fc8ff"))
-        super(RefFrameJumpItem, self).hoverLeaveEvent(event)
+        super().hoverLeaveEvent(event)
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu()

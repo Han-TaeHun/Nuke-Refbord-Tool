@@ -9,7 +9,7 @@ class AddBoardItemCommand(QtWidgets.QUndoCommand):
     """Add a single board item to the canvas scene."""
 
     def __init__(self, view, item, label):
-        super(AddBoardItemCommand, self).__init__(label)
+        super().__init__(label)
         self.view = view
         self.item = item
 
@@ -24,7 +24,7 @@ class RemoveBoardItemsCommand(QtWidgets.QUndoCommand):
     """Remove one or more selected items from the canvas scene."""
 
     def __init__(self, view, items, label):
-        super(RemoveBoardItemsCommand, self).__init__(label)
+        super().__init__(label)
         self.view = view
         self.items = list(items or [])
 
@@ -46,7 +46,7 @@ class BringBoardItemsToFrontCommand(QtWidgets.QUndoCommand):
     """Move selected board items above the rest of the canvas."""
 
     def __init__(self, view, items, label):
-        super(BringBoardItemsToFrontCommand, self).__init__(label)
+        super().__init__(label)
         self.view = view
         self.items = list(items or [])
         self.before_z_values = [(item, float(item.zValue())) for item in self.items]
@@ -76,7 +76,7 @@ class ItemStateChangeCommand(QtWidgets.QUndoCommand):
     """Undoable move / rotate / scale state change for one item."""
 
     def __init__(self, view, item, before_state, after_state, label):
-        super(ItemStateChangeCommand, self).__init__(label)
+        super().__init__(label)
         self.view = view
         self.item = item
         self.before_state = dict(before_state or {})
