@@ -111,6 +111,12 @@ class RefCanvasView(QtWidgets.QGraphicsView):
     def framejump_items(self):
         return [item for item in self.scene().items() if getattr(item, "refboard_item_type", "") == "framejump"]
 
+    def _all_board_items(self):
+        return [
+            item for item in self.scene().items()
+            if getattr(item, "refboard_item_type", "") in ("image", "note", "nodemark", "framejump")
+        ]
+
     def add_note(self, scene_pos=None, text="Text"):
         if scene_pos is None:
             scene_pos = self.mapToScene(self.viewport().rect().center())
@@ -648,7 +654,7 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def drawForeground(self, painter, rect):
         super(RefCanvasView, self).drawForeground(painter, rect)
-        if self.image_items() or self.note_items() or self.nodemark_items() or self.framejump_items():
+        if self._all_board_items():
             return
         message = self._empty_state_message()
         if not message:
@@ -730,11 +736,8 @@ class RefCanvasView(QtWidgets.QGraphicsView):
         )
 
     def _next_z_value(self):
-        values = [
-            item.zValue()
-            for item in self.image_items() + self.note_items() + self.nodemark_items() + self.framejump_items()
-        ]
-        return (max(values) + 1) if values else 1
+        all_items = self._all_board_items()
+        return (max(item.zValue() for item in all_items) + 1) if all_items else 1
 
     def _wire_note_item(self, item):
         document = item.document()
@@ -966,12 +969,10 @@ class RefCanvasView(QtWidgets.QGraphicsView):
 
     def frame_selected_or_all_images(self):
         selected_items = self._selected_board_items()
-        return self._frame_items(
-            selected_items or (self.image_items() + self.note_items() + self.nodemark_items() + self.framejump_items())
-        )
+        return self._frame_items(selected_items or self._all_board_items())
 
     def frame_all_images(self):
-        return self._frame_items(self.image_items() + self.note_items() + self.nodemark_items() + self.framejump_items())
+        return self._frame_items(self._all_board_items())
 
     def _frame_items(self, items):
         if not items:

@@ -1,6 +1,6 @@
 # 런타임 파일 및 임시 디렉토리 관리
-import os
 import shutil
+from pathlib import Path
 
 
 class FileManager:
@@ -13,9 +13,8 @@ class FileManager:
         self._runtime_root_override = self._normalize_runtime_root(runtime_root) if runtime_root else None
 
     @classmethod
-    def default_runtime_root(cls):
-        plugin_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(plugin_root, "temp")
+    def default_runtime_root(cls) -> str:
+        return str(Path(__file__).parent.parent / "temp")
 
     @classmethod
     def configure_runtime_root(cls, runtime_root=None):
@@ -23,49 +22,48 @@ class FileManager:
         return cls.current_runtime_root()
 
     @classmethod
-    def current_runtime_root(cls):
+    def current_runtime_root(cls) -> str:
         return cls._configured_runtime_root or cls.default_runtime_root()
 
     @staticmethod
     def _normalize_runtime_root(runtime_root):
         if not runtime_root:
             return None
-        return os.path.abspath(os.path.normpath(runtime_root))
+        return str(Path(runtime_root).resolve())
 
     @property
-    def runtime_dir(self):
+    def runtime_dir(self) -> str:
         return self._runtime_root_override or self.current_runtime_root()
 
     def set_runtime_root(self, runtime_root=None):
         self._runtime_root_override = self._normalize_runtime_root(runtime_root) if runtime_root else None
         return self.runtime_dir
 
-    def ensure_runtime_dir(self):
-        if not os.path.exists(self.runtime_dir):
-            os.makedirs(self.runtime_dir)
-        return self.runtime_dir
+    def ensure_runtime_dir(self) -> str:
+        path = Path(self.runtime_dir)
+        path.mkdir(parents=True, exist_ok=True)
+        return str(path)
 
-    def extraction_dir(self, board_path):
-        base = os.path.splitext(os.path.basename(board_path))[0] or "board"
-        return os.path.join(self.ensure_runtime_dir(), base)
+    def extraction_dir(self, board_path) -> str:
+        base = Path(board_path).stem or "board"
+        return str(Path(self.ensure_runtime_dir()) / base)
 
     def clear_runtime_dir(self):
-        runtime_dir = self.runtime_dir
-        if not os.path.exists(runtime_dir):
+        runtime_path = Path(self.runtime_dir)
+        if not runtime_path.exists():
             return
 
         default_root = self._normalize_runtime_root(self.default_runtime_root())
-        current_root = self._normalize_runtime_root(runtime_dir)
+        current_root = self._normalize_runtime_root(self.runtime_dir)
         if current_root == default_root:
-            shutil.rmtree(runtime_dir, ignore_errors=True)
+            shutil.rmtree(runtime_path, ignore_errors=True)
             return
 
-        for name in os.listdir(runtime_dir):
-            path = os.path.join(runtime_dir, name)
+        for child in runtime_path.iterdir():
             try:
-                if os.path.isdir(path):
-                    shutil.rmtree(path, ignore_errors=True)
+                if child.is_dir():
+                    shutil.rmtree(child, ignore_errors=True)
                 else:
-                    os.remove(path)
+                    child.unlink()
             except Exception:
                 pass
