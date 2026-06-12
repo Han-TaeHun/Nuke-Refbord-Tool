@@ -1,15 +1,19 @@
 # 프레임 점프 하이퍼링크 데이터 모델
-class FrameJumpModel(object):
+from dataclasses import dataclass, field
+from uuid import uuid4
+
+
+@dataclass
+class FrameJumpModel:
     """Serializable data for one frame-jump hyperlink item."""
 
-    def __init__(self, frame=1, display_label="", id="", x=0.0, y=0.0, z_order=0):
-        self.id = id or ""
-        self.type = "framejump"
-        self.frame = int(frame)
-        self.display_label = display_label
-        self.x = float(x)
-        self.y = float(y)
-        self.z_order = int(z_order)
+    frame: int = 1
+    display_label: str = ""
+    id: str = field(default_factory=lambda: "framejump_{0}".format(uuid4().hex[:10]))
+    type: str = "framejump"
+    x: float = 0.0
+    y: float = 0.0
+    z_order: int = 0
 
     def to_dict(self):
         return {
@@ -26,7 +30,7 @@ class FrameJumpModel(object):
     def from_dict(cls, data):
         data = data or {}
         return cls(
-            id=data.get("id", ""),
+            id=data.get("id") or "framejump_{0}".format(uuid4().hex[:10]),
             frame=int(data.get("frame", 1)),
             display_label=data.get("display_label", ""),
             x=float(data.get("x", 0.0)),

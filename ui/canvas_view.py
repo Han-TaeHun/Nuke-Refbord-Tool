@@ -668,7 +668,6 @@ class RefCanvasView(QtWidgets.QGraphicsView):
             return panel.empty_state_message()
         return u">>> Please drag the image here <<<"
 
-
     def _pick_text_color(self, target):
         note = self.current_note_item()
         if note is None:

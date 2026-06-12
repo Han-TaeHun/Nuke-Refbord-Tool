@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+from pathlib import Path
 
 
 DEFAULT_SETTINGS = {
@@ -27,15 +28,15 @@ DEFAULT_SETTINGS = {
 }
 
 
-def _settings_directory():
+def _settings_directory() -> Path:
     if os.name == "nt":
-        base_dir = os.environ.get("APPDATA") or os.path.expanduser("~")
-        return os.path.join(base_dir, "NukeRefBoard")
-    return os.path.join(os.path.expanduser("~"), ".nuke", "NukeRefBoard")
+        base_dir = os.environ.get("APPDATA")
+        return (Path(base_dir) if base_dir else Path.home()) / "NukeRefBoard"
+    return Path.home() / ".nuke" / "NukeRefBoard"
 
 
-def settings_file_path():
-    return os.path.join(_settings_directory(), "settings.json")
+def settings_file_path() -> Path:
+    return _settings_directory() / "settings.json"
 
 
 def default_settings():
@@ -44,11 +45,10 @@ def default_settings():
 
 def _load_settings_from_disk():
     file_path = settings_file_path()
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         return default_settings()
     try:
-        with open(file_path, "r") as handle:
-            payload = json.load(handle) or {}
+        payload = json.loads(file_path.read_text(encoding="utf-8")) or {}
     except Exception:
         return default_settings()
     merged = default_settings()
@@ -58,11 +58,8 @@ def _load_settings_from_disk():
 
 def _save_settings_to_disk(settings):
     file_path = settings_file_path()
-    directory = os.path.dirname(file_path)
-    if directory and not os.path.exists(directory):
-        os.makedirs(directory)
-    with open(file_path, "w") as handle:
-        json.dump(settings, handle, indent=2, sort_keys=True)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(json.dumps(settings, indent=2, sort_keys=True), encoding="utf-8")
 
 
 _runtime_settings = _load_settings_from_disk()
